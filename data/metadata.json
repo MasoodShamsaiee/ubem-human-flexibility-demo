@@ -1,0 +1,32 @@
+{
+  "demo_name": "UBEM Human Flexibility Demo",
+  "data_status": "demo-safe illustrative data",
+  "dsm_context_status": "small excerpt of normalized FSA-level DSM report outputs copied from local research reports",
+  "disclaimer": "This is a research communication demo using simplified/demo-safe data. It illustrates the workflow and findings, not an operational DSM recommendation tool.",
+  "source_repositories_reviewed": [
+    {
+      "name": "dsm-alignment",
+      "role": "Extracted DSM scoring package",
+      "reused_concepts": [
+        "rank-based weighted composites",
+        "Flex D, Hilo, LogisVert, and low-income alignment constructs",
+        "area-level demand relevance versus suitability/capacity framing",
+        "small normalized FSA-level alignment-score excerpt for the app baseline"
+      ]
+    },
+    {
+      "name": "synthetic-population-qc",
+      "role": "Synthetic population workflow package",
+      "reused_concepts": [
+        "supported people.parquet semantic columns",
+        "supported households.parquet semantic columns",
+        "bundle-first workflow and validation/exploration artifacts"
+      ]
+    }
+  ],
+  "limitations": [
+    "Resident-level scores are illustrative profile alignments, not validated individual predictions.",
+    "DSM source logic is area/unit-level. This demo maps a synthetic resident to a demo DA and a real FSA-level DSM report context, then adds household resemblance modifiers for communication only.",
+    "Energy and socio-demographic values are toy values designed to preserve schema and qualitative relationships without exposing private data."
+  ]
+}

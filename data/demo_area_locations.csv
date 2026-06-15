@@ -1,0 +1,11 @@
+area,x,y,map_zone
+DA-101,1.0,4.2,Central high-density
+DA-102,1.8,3.8,Central high-density
+DA-103,2.8,4.5,Mixed middle
+DA-104,3.9,4.1,Older detached
+DA-105,5.0,4.7,Outer family
+DA-106,1.2,2.7,Lower-income renter
+DA-107,2.6,2.9,Stable row-house
+DA-108,3.9,2.6,Repair-sensitive
+DA-109,5.1,3.0,New high-density
+DA-110,2.2,1.5,Older stock
