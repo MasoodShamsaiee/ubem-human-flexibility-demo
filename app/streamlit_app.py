@@ -65,7 +65,7 @@ ESIM_PROGRAM_CONTEXT = pd.DataFrame(
             "12 ideal FSAs; 28 policy-gap FSAs",
         ),
     ],
-    columns=["Program", "Pathway", "Capacity or targeting axis", "Main alignment constraint", "Paper result"],
+    columns=["Program", "Pathway", "Capacity or targeting axis", "Main alignment constraint", "Reference distribution"],
 )
 
 ESIM_PROGRAM_AXES = {
@@ -141,7 +141,7 @@ ESIM_PAPER_CLASS_DISTRIBUTION = pd.DataFrame(
         ("Low-income assistance", "Low priority", "28 (35.4%)"),
         ("Low-income assistance", "Minimal impact", "11 (13.9%)"),
     ],
-    columns=["Program", "Class", "Paper-reported FSAs"],
+    columns=["Program", "Class", "Reference FSAs"],
 )
 
 ESIM_COMPONENT_DESCRIPTIONS = {
@@ -169,6 +169,7 @@ from src.visualization import (
     energy_percentile_strip,
     energy_relationship_scatter,
     fsa_context_map,
+    program_component_axis_scatter,
     program_axis_stacked_bar,
     radar_chart,
     relevance_capacity_matrix,
@@ -638,23 +639,24 @@ def esim_demo_class_distribution(real_alignment: pd.DataFrame, program: str) -> 
 
 def esim_component_breakdown(report_row: pd.Series) -> pd.DataFrame:
     rows = [
-        ("Flex D", "Demand relevance", "demand_relevance", 0.55),
-        ("Flex D", "Temporal flexibility", "temporal_flexibility", 0.45 * 0.50),
-        ("Flex D", "Demand elasticity", "demand_elasticity", 0.45 * 0.50),
-        ("Hilo", "Demand relevance", "demand_relevance", 0.50),
-        ("Hilo", "Technical eligibility", "technical_eligibility", 0.50 / 3),
-        ("Hilo", "Control authority", "control_authority", 0.50 / 3),
-        ("Hilo", "Curtailment tolerance", "curtailment_tolerance", 0.50 / 3),
-        ("LogisVert", "Structural demand", "structural_demand_relevance", 0.50),
-        ("LogisVert", "Adoption capacity", "adoption_capacity", 0.25),
-        ("LogisVert", "Persistence capacity", "persistence_capacity", 0.25),
-        ("Low-income assistance", "System relevance", "system_relevance", 0.50),
-        ("Low-income assistance", "Energy vulnerability", "energy_vulnerability", 0.50),
+        ("Flex D", "Demand-related", "Demand relevance", "demand_relevance", 0.55),
+        ("Flex D", "Capacity-related", "Temporal flexibility", "temporal_flexibility", 0.45 * 0.50),
+        ("Flex D", "Capacity-related", "Demand elasticity", "demand_elasticity", 0.45 * 0.50),
+        ("Hilo", "Demand-related", "Demand relevance", "demand_relevance", 0.50),
+        ("Hilo", "Capacity-related", "Technical eligibility", "technical_eligibility", 0.50 / 3),
+        ("Hilo", "Capacity-related", "Control authority", "control_authority", 0.50 / 3),
+        ("Hilo", "Capacity-related", "Curtailment tolerance", "curtailment_tolerance", 0.50 / 3),
+        ("LogisVert", "Demand-related", "Structural demand", "structural_demand_relevance", 0.50),
+        ("LogisVert", "Capacity-related", "Adoption capacity", "adoption_capacity", 0.25),
+        ("LogisVert", "Capacity-related", "Persistence capacity", "persistence_capacity", 0.25),
+        ("Low-income assistance", "Demand-related", "System relevance", "system_relevance", 0.50),
+        ("Low-income assistance", "Capacity-related", "Energy vulnerability", "energy_vulnerability", 0.50),
     ]
     return pd.DataFrame(
         [
             {
                 "program": program,
+                "axis": axis,
                 "component": component,
                 "source_value": float(report_row[source_col]),
                 "weight": weight,
@@ -662,7 +664,7 @@ def esim_component_breakdown(report_row: pd.Series) -> pd.DataFrame:
                 "value": float(report_row[source_col]) * weight,
                 "description": ESIM_COMPONENT_DESCRIPTIONS[component],
             }
-            for program, component, source_col, weight in rows
+            for program, axis, component, source_col, weight in rows
         ]
     )
 
@@ -774,7 +776,7 @@ def render_esim_path(
         if area_profile is None:
             st.info(
                 "Raw PRISM/load feature rows are not included for this FSA in the current demo extract. "
-                "The FSA-wide alignment indices above are still available, but the paper's raw energy-feature diagnostics "
+                "The FSA-wide alignment indices are still available, but raw energy-feature diagnostics "
                 "should be added for full manuscript fidelity."
             )
         else:
@@ -968,42 +970,39 @@ def render_esim_path(
             st.rerun()
         st.caption(
             f"Selected FSA {selected_fsa_context} has a composite {program} alignment score of {selected_score:.2f}. "
-            "The dashed thresholds use the current demo extract's quantile split; the paper table below reports the submitted-paper class counts."
+            "The dashed thresholds use the current demo extract's quantile split. The table compares the reference class distribution with this deployment's current FSA set."
         )
         demo_counts = esim_demo_class_distribution(real_alignment, program)
-        paper_counts = ESIM_PAPER_CLASS_DISTRIBUTION.loc[
+        reference_counts = ESIM_PAPER_CLASS_DISTRIBUTION.loc[
             ESIM_PAPER_CLASS_DISTRIBUTION["Program"].eq(program)
         ].reset_index(drop=True)
-        count_table = paper_counts.merge(demo_counts, on="Class", how="left").fillna({"Current demo FSAs": 0})
+        count_table = reference_counts.merge(demo_counts, on="Class", how="left").fillna({"Current demo FSAs": 0})
         st.dataframe(count_table, width="stretch", hide_index=True)
 
-        st.subheader("Detailed program components")
-        left, right = st.columns([0.9, 1.2])
+        st.subheader("What drives each program score")
+        left, right = st.columns([1.15, 1])
         with left:
-            if alignment_breakdown_bar is None:
-                st.plotly_chart(alignment_bar(score_rows), width="stretch")
-            else:
-                st.plotly_chart(alignment_breakdown_bar(esim_breakdown), width="stretch")
-            st.caption("Each total score is decomposed into the paper subindices used for that program.")
+            st.plotly_chart(program_component_axis_scatter(esim_breakdown, "Component source indices by axis"), width="stretch")
+            st.caption("Blue markers are demand-related components; orange markers are capacity-related components. Marker size shows the component weight in the program score.")
         with right:
-            index_rows = pd.DataFrame(
-                [
-                    ("Demand relevance", report_row["demand_relevance"], "System need for peak-oriented programs"),
-                    ("Participation capacity", report_row["participation_capacity"], "Flex D behavioral readiness"),
-                    ("Temporal flexibility", report_row["temporal_flexibility"], "Ability to shift peak-period routines"),
-                    ("Demand elasticity", report_row["demand_elasticity"], "Likelihood of price response"),
-                    ("Hilo suitability", report_row["hilo_suitability"], "Automated response readiness"),
-                    ("Technical eligibility", report_row["technical_eligibility"], "Controllable electric-heating proxy"),
-                    ("Control authority", report_row["control_authority"], "Tenure and installation authority proxy"),
-                    ("Curtailment tolerance", report_row["curtailment_tolerance"], "Capacity to tolerate short automated adjustments"),
-                    ("Structural demand relevance", report_row["structural_demand_relevance"], "Retrofit/equipment-upgrade relevance"),
-                    ("Overall retrofit capacity", report_row["overall_capacity"], "Ability to adopt structural upgrades"),
-                    ("System relevance", report_row["system_relevance"], "Peak-system relevance for protection programs"),
-                    ("Energy vulnerability", report_row["energy_vulnerability"], "Affordability and hardship exposure"),
-                ],
-                columns=["Index", "Value", "Paper interpretation"],
+            component_table = esim_breakdown.copy()
+            component_table["Source index"] = component_table["source_value"].map(lambda value: f"{float(value):.2f}")
+            component_table["Weight"] = component_table["weight"].map(lambda value: f"{float(value):.2f}")
+            component_table["Weighted contribution"] = component_table["contribution"].map(lambda value: f"{float(value):.3f}")
+            st.dataframe(
+                component_table[
+                    ["program", "axis", "component", "Source index", "Weight", "Weighted contribution", "description"]
+                ].rename(
+                    columns={
+                        "program": "Program",
+                        "axis": "Axis",
+                        "component": "Component",
+                        "description": "Interpretation",
+                    }
+                ),
+                width="stretch",
+                hide_index=True,
             )
-            st.dataframe(index_rows, width="stretch", hide_index=True)
         st.info(
             "These are FSA-level normalized indices from the DSM report workflow. They describe local structural fit, not a resident-level recommendation."
         )
@@ -1014,18 +1013,18 @@ def render_esim_path(
             "This workflow evaluates structural alignment rather than realized program impacts. It asks whether each DSM program's assumptions are co-located with FSA-level demand pressures and socio-demographic conditions."
         )
         st.markdown(
-            "- **Paper workflow**: PRISM-derived heating sensitivity, winter peak/load-shape indicators, DML-informed socio-demographic associations, and program-specific relevance-capacity classes.\n"
+            "- **Workflow**: PRISM-derived heating sensitivity, winter peak/load-shape indicators, DML-informed socio-demographic associations, and program-specific relevance-capacity classes.\n"
             "- **Program pathways**: Tarif Flex D, Hilo, LogisVert, and low-income assistance are evaluated as different demand and capacity mechanisms.\n"
             "- **Interpretation**: high-demand FSAs are not automatically high-flexibility, high-eligibility, high-capacity, or high-vulnerability FSAs.\n"
             "- **Current demo data boundary**: raw PRISM and short-term aggregate features are now present for the 94 Montreal FSAs in the alignment extract; usable DTW cluster labels, hourly average daily profiles, and full DML feature-importance tables are still not included in this compact deploy artifact.\n"
             "- **Author links**: [Google Scholar](https://scholar.google.com/citations?hl=en&user=7BeRoW4AAAAJ) | [LinkedIn](https://ca.linkedin.com/in/masoodshamsaiee).\n"
-            "- **Related paper links**: [Energy & Buildings article record](https://ui.adsabs.harvard.edu/abs/2026EneBu.35216793S/abstract) | [SSRN preprint](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5381520).\n"
+            "- **References**: [Energy & Buildings article record](https://ui.adsabs.harvard.edu/abs/2026EneBu.35216793S/abstract) | [SSRN preprint](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5381520).\n"
             "- **Contact**: Masood Shamsaiee, Next-Generation Cities Institute, Concordia University."
         )
-        st.subheader("Program-specific assumptions used in the paper")
+        st.subheader("Program-specific assumptions")
         st.dataframe(ESIM_PROGRAM_CONTEXT, width="stretch", hide_index=True)
         if ESIM_MATRIX_IMAGE.exists():
-            st.image(str(ESIM_MATRIX_IMAGE), caption="Relevance-capacity matrix used in the eSim paper.")
+            st.image(str(ESIM_MATRIX_IMAGE), caption="Relevance-capacity matrix used by this workflow.")
 
 
 @st.cache_data

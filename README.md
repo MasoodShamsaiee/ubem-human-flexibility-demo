@@ -1,6 +1,6 @@
 # eSim 2026 DSM Alignment Explorer
 
-A Streamlit conference demo for the eSim 2026 paper workflow. The app lets visitors select a Montreal Forward Sortation Area (FSA) from a map and inspect how that FSA aligns with four demand-side-management program pathways:
+A Streamlit conference demo for the eSim 2026 demand-side-management alignment workflow. The app lets visitors select a Montreal Forward Sortation Area (FSA) from a map and inspect how that FSA aligns with four program pathways:
 
 - Tarif Flex D
 - Hilo
@@ -15,7 +15,7 @@ The demo is intentionally spatial and program-oriented. It illustrates FSA-level
 2. Review long-term energy features, short-term winter load features, and socio-demographic context for the selected FSA.
 3. Compare program scores while keeping demand-related and capacity-related dimensions separate.
 4. Use the relevance-capacity matrix to explore ideal targets, policy gaps, low-priority areas, and minimal-impact areas.
-5. Open the info tab for interpretation boundaries, paper links, and author links.
+5. Open the info tab for interpretation boundaries, references, and author links.
 
 ## Demo Data
 

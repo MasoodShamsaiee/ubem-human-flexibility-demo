@@ -16,13 +16,13 @@ SELECTED_COLOR = MPL_ORANGE
 COMPONENT_COLORS = {
     "Demand relevance": MPL_BLUE,
     "Temporal flexibility": MPL_ORANGE,
-    "Demand elasticity": MPL_LIGHT_BLUE,
+    "Demand elasticity": "#d95f02",
     "Technical eligibility": MPL_LIGHT_ORANGE,
-    "Control authority": MPL_LIGHT_BLUE,
-    "Curtailment tolerance": "#2ca02c",
+    "Control authority": "#e6550d",
+    "Curtailment tolerance": "#fd8d3c",
     "Structural demand": MPL_BLUE,
     "Adoption capacity": MPL_ORANGE,
-    "Persistence capacity": MPL_LIGHT_BLUE,
+    "Persistence capacity": "#d95f02",
     "System relevance": MPL_BLUE,
     "Energy vulnerability": MPL_ORANGE,
     "Household resemblance": "#d62728",
@@ -328,6 +328,53 @@ def program_axis_stacked_bar(program_axes: pd.DataFrame, title: str) -> go.Figur
     )
     fig.update_xaxes(title="")
     fig.update_yaxes(title="Axis value", range=[0, 1])
+    return fig
+
+
+def program_component_axis_scatter(breakdown: pd.DataFrame, title: str) -> go.Figure:
+    data = breakdown.copy()
+    data["axis"] = data.get("axis", "Component")
+    data["label"] = data["program"] + " | " + data["component"]
+    data["marker_size"] = 14 + 34 * pd.to_numeric(data["weight"], errors="coerce").fillna(0)
+    axis_colors = {"Demand-related": DEMAND_COLOR, "Capacity-related": CAPACITY_COLOR}
+    label_order = data["label"].tolist()[::-1]
+    fig = go.Figure()
+    for axis in ["Demand-related", "Capacity-related"]:
+        part = data.loc[data["axis"].eq(axis)]
+        if part.empty:
+            continue
+        fig.add_trace(
+            go.Scatter(
+                x=part["source_value"],
+                y=part["label"],
+                mode="markers",
+                name=axis,
+                marker=dict(
+                    size=part["marker_size"],
+                    color=axis_colors[axis],
+                    opacity=0.88,
+                    line=dict(width=1.5, color="#FFFFFF"),
+                ),
+                customdata=part[["weight", "contribution", "description"]],
+                hovertemplate=(
+                    "<b>%{y}</b><br>"
+                    "Source index: %{x:.2f}<br>"
+                    "Weight: %{customdata[0]:.2f}<br>"
+                    "Weighted contribution: %{customdata[1]:.3f}<br>"
+                    "%{customdata[2]}<extra></extra>"
+                ),
+            )
+        )
+    fig.update_layout(
+        title=title,
+        height=max(430, 34 * len(label_order) + 120),
+        margin=dict(l=12, r=20, t=52, b=48),
+        legend=dict(orientation="h", y=-0.13, x=0, title_text=""),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_xaxes(title="Source index value", range=[0, 1], zeroline=False)
+    fig.update_yaxes(title="", categoryorder="array", categoryarray=label_order)
     return fig
 
 
