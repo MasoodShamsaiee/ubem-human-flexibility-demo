@@ -501,10 +501,10 @@ def read_feedback() -> pd.DataFrame:
 def render_intro(metadata: dict) -> None:
     st.markdown(
         """
-        This app is a conference-facing explorer for the eSim 2026 demand-side-management alignment workflow.
-        It maps Montreal Forward Sortation Areas (FSAs) using long-term energy signatures, short-term winter
-        load indicators, and socio-demographic capacity proxies, then compares how well each FSA aligns with
-        four DSM program pathways.
+        This app is a demo for the demand-side-management alignment workflow developed by
+        [Masood Shamsaiee](https://github.com/MasoodShamsaiee). It maps Montreal Forward Sortation Areas
+        (FSAs) using long-term energy signatures, short-term winter load indicators, and socio-demographic
+        capacity proxies, then compares how well each FSA aligns with four DSM program pathways.
         """
     )
     with st.expander("Workflow and matrix summary", expanded=True):
@@ -530,7 +530,7 @@ def render_intro(metadata: dict) -> None:
                 are ideal targets, policy gaps, low-priority areas, and minimal-impact areas.
                 """
             )
-    st.caption(metadata["disclaimer"])
+    st.caption("This is a research communication demo using simplified data. It illustrates the workflow and findings, not an operational DSM recommendation tool.")
 
 
 def selected_fsa_from_plotly_event(event: object, valid_fsas: set[str]) -> str | None:
@@ -728,6 +728,23 @@ def energy_feature_cards(area_profile: pd.Series) -> dict[str, str]:
     return fields
 
 
+def energy_feature_summary_table(area_profile: pd.Series) -> pd.DataFrame:
+    rows = [
+        ("Long-term", "Winter peak share", f"{float(area_profile['winter_peak_share']):.3f}"),
+        ("Long-term", "Heating slope per HDD", f"{float(area_profile['heating_slope_per_hdd']):.3f}"),
+        ("Long-term", "Heating change point", f"{float(area_profile['heating_change_point_temp_c']):.1f} C"),
+        ("Long-term", "Baseload intercept", f"{float(area_profile['baseload_intercept']):.2f}"),
+        ("Long-term", "Cooling slope per CDD", f"{float(area_profile['cooling_slope_per_cdd']):.3f}"),
+        ("Long-term", "Winter peak intensity", f"{float(area_profile['winter_peak_intensity']):.2f}"),
+        ("Short-term", "Daily peak load", f"{float(area_profile['peak_load']):.2f}"),
+        ("Short-term", "Top 10% load mean", f"{float(area_profile['p90_top10_mean']):.2f}"),
+        ("Short-term", "Mean load", f"{float(area_profile['mean_load']):.2f}"),
+        ("Short-term", "Morning/evening peak ratio", f"{float(area_profile['am_pm_peak_ratio']):.2f}"),
+        ("Short-term", "Ramp-up rate", f"{float(area_profile['ramp_up_rate']):.3f}"),
+    ]
+    return pd.DataFrame(rows, columns=["Feature group", "Feature", "Selected FSA value"])
+
+
 def available_energy_fsa_text(dsm_profiles: pd.DataFrame) -> str:
     fsas = dsm_profiles["fsa_context"].dropna().drop_duplicates().sort_values().tolist()
     return ", ".join(fsas)
@@ -753,22 +770,7 @@ def render_esim_path(
     program_axes = esim_program_axis_rows(report_row)
 
     with tab_results:
-        st.subheader(f"Analysis results for FSA {selected_fsa_context}")
-        st.write(
-            "This view compares the selected FSA with the rest of the Montreal FSA set. The values are normalized FSA-level indicators, so they show structural position in the study area rather than individual household predictions."
-        )
-        m1, m2, m3, m4 = st.columns(4)
-        with m1:
-            st.metric("Best program score", score_rows.iloc[0]["program"])
-        with m2:
-            st.metric("Score", f"{float(score_rows.iloc[0]['alignment_score']):.2f}")
-        with m3:
-            st.metric("Demand relevance", f"{float(report_row['demand_relevance']):.2f}")
-        with m4:
-            st.metric("Energy vulnerability", f"{float(report_row['energy_vulnerability']):.2f}")
-
-        st.subheader("Energy-demand features")
-        st.caption(f"Raw energy-profile data are available for {dsm_profiles['fsa_context'].nunique()} FSAs: {available_energy_fsa_text(dsm_profiles)}.")
+        st.subheader(f"Energy-demand features for FSA {selected_fsa_context}")
         if area_profile is None:
             st.info(
                 "Raw PRISM/load feature rows are not included for this FSA in the current demo extract. "
@@ -776,9 +778,6 @@ def render_esim_path(
                 "should be added for full manuscript fidelity."
             )
         else:
-            st.caption(
-                "Available energy features from the processed Montreal FSA DSM tables. These align with the paper's PRISM and short-term winter-load feature layer; hourly average daily profiles and usable DTW cluster labels are still not included in this compact deploy artifact."
-            )
             long_term_energy_metrics = [
                 ("heating_slope_per_hdd", "Heating slope per HDD"),
                 ("heating_change_point_temp_c", "Heating change point"),
@@ -830,7 +829,11 @@ def render_esim_path(
                     width="stretch",
                 )
 
-            render_field_cards(energy_feature_cards(area_profile))
+            st.dataframe(
+                energy_feature_summary_table(area_profile),
+                width="stretch",
+                hide_index=True,
+            )
 
             with st.expander("Energy metric percentiles", expanded=False):
                 p_left, p_right = st.columns(2)
@@ -854,29 +857,6 @@ def render_esim_path(
                         ),
                         width="stretch",
                     )
-
-        derived_demand_metrics = [
-            ("structural_demand_relevance", "Structural demand"),
-            ("technical_eligibility", "Technical eligibility"),
-            ("demand_relevance", "Demand relevance"),
-        ]
-        short_term_metrics = [
-            ("temporal_flexibility", "Temporal flexibility"),
-            ("demand_elasticity", "Demand elasticity"),
-            ("curtailment_tolerance", "Curtailment tolerance"),
-        ]
-        st.subheader("Derived alignment indicators")
-        left, right = st.columns(2)
-        with left:
-            st.plotly_chart(
-                selected_vs_rest_bar(real_alignment, selected_fsa_context, "fsa", derived_demand_metrics, "Demand and technical indices"),
-                width="stretch",
-            )
-        with right:
-            st.plotly_chart(
-                selected_vs_rest_bar(real_alignment, selected_fsa_context, "fsa", short_term_metrics, "Short-term flexibility indices"),
-                width="stretch",
-            )
 
         st.subheader("Socio-demographic context")
         if area_profile is None:
@@ -922,22 +902,35 @@ def render_esim_path(
                     width="stretch",
                 )
 
-        st.subheader("Resident-option distributions")
-        d1, d2 = st.columns(2)
-        with d1:
-            st.plotly_chart(selected_distribution_bar(population, selected_fsa_context, "household_income", "Household income distribution"), width="stretch")
-        with d2:
-            st.plotly_chart(selected_distribution_bar(population, selected_fsa_context, "household_type", "Household-structure distribution"), width="stretch")
+        derived_demand_metrics = [
+            ("structural_demand_relevance", "Structural demand"),
+            ("technical_eligibility", "Technical eligibility"),
+            ("demand_relevance", "Demand relevance"),
+        ]
+        short_term_metrics = [
+            ("temporal_flexibility", "Temporal flexibility"),
+            ("demand_elasticity", "Demand elasticity"),
+            ("curtailment_tolerance", "Curtailment tolerance"),
+        ]
+        st.subheader("Derived alignment indicators")
+        left, right = st.columns(2)
+        with left:
+            st.plotly_chart(
+                selected_vs_rest_bar(real_alignment, selected_fsa_context, "fsa", derived_demand_metrics, "Demand and technical indices"),
+                width="stretch",
+            )
+        with right:
+            st.plotly_chart(
+                selected_vs_rest_bar(real_alignment, selected_fsa_context, "fsa", short_term_metrics, "Short-term flexibility indices"),
+                width="stretch",
+            )
 
     with tab_programs:
         st.subheader("Program analysis")
         st.write(
             "Overall program scores are shown with demand-related and capacity-related dimensions kept separate. The matrix below is secondary: click a dot when you want to move the whole app to a different FSA."
         )
-        st.plotly_chart(program_axis_stacked_bar(program_axes, "Separated demand and capacity axes by program"), width="stretch")
-        st.caption(
-            "The annotation above each stacked bar is the two-axis average used for the FSA-level program score. The stacked height is not interpreted as a combined program value."
-        )
+        st.plotly_chart(program_axis_stacked_bar(program_axes, "Demand and capacity axes by program"), width="stretch")
 
         program = st.radio("Matrix program", list(ESIM_PROGRAM_AXES), horizontal=True, key="esim_results_matrix_program")
         config = ESIM_PROGRAM_AXES[program]
@@ -970,8 +963,9 @@ def render_esim_path(
         )
         matrix_fsa = selected_fsa_from_plotly_event(matrix_event, valid_fsas)
         if matrix_fsa and matrix_fsa != selected_fsa_context:
-            request_fsa_change(matrix_fsa)
-        render_pending_fsa_change(population)
+            set_selected_fsa(matrix_fsa, population)
+            st.session_state.pending_fsa_context = None
+            st.rerun()
         st.caption(
             f"Selected FSA {selected_fsa_context} has a composite {program} alignment score of {selected_score:.2f}. "
             "The dashed thresholds use the current demo extract's quantile split; the paper table below reports the submitted-paper class counts."
@@ -1077,7 +1071,7 @@ if "selected_resident_id" not in st.session_state:
     st.session_state.selected_resident_id = first_resident["resident_id"]
 
 st.subheader("1. Choose a Montreal FSA from the map")
-st.caption("Click a dot to propose a new FSA. The app asks for confirmation before changing the active analysis context.")
+st.caption("Click a dot to update the active FSA analysis context.")
 map_event = st.plotly_chart(
     fsa_context_map(
         dsm_profiles,
@@ -1094,8 +1088,9 @@ map_event = st.plotly_chart(
 )
 clicked_fsa = selected_fsa_from_plotly_event(map_event, valid_fsas)
 if clicked_fsa and clicked_fsa != st.session_state.selected_fsa_context:
-    request_fsa_change(clicked_fsa)
-render_pending_fsa_change(population)
+    set_selected_fsa(clicked_fsa, population)
+    st.session_state.pending_fsa_context = None
+    st.rerun()
 
 selection_a, selection_b = st.columns(2)
 with selection_a:

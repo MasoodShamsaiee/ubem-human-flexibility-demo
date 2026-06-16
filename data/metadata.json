@@ -1,8 +1,8 @@
 {
-  "demo_name": "UBEM Human Flexibility Demo",
+  "demo_name": "eSim 2026 DSM Alignment Explorer",
   "data_status": "demo-safe illustrative data",
   "dsm_context_status": "small excerpt of normalized FSA-level DSM report outputs copied from local research reports",
-  "disclaimer": "This is a research communication demo using simplified/demo-safe data. It illustrates the workflow and findings, not an operational DSM recommendation tool.",
+  "disclaimer": "This is a research communication demo using simplified data. It illustrates the workflow and findings, not an operational DSM recommendation tool.",
   "source_repositories_reviewed": [
     {
       "name": "dsm-alignment",

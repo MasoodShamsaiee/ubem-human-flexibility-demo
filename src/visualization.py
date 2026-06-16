@@ -317,19 +317,9 @@ def program_axis_stacked_bar(program_axes: pd.DataFrame, title: str) -> go.Figur
             hovertemplate="<b>%{x}</b><br>%{customdata[0]}: %{customdata[1]:.2f}<extra></extra>",
         )
     )
-    totals = program_axes["Demand-related"] + program_axes["Capacity-related"]
-    for program, total in zip(program_axes["Program"], totals, strict=False):
-        fig.add_annotation(
-            x=program,
-            y=float(total) + 0.03,
-            text=f"{float(total / 2):.2f}",
-            showarrow=False,
-            yanchor="bottom",
-            font=dict(size=12, color="#1F2A2A"),
-        )
     fig.update_layout(
         title=title,
-        barmode="stack",
+        barmode="group",
         height=390,
         margin=dict(l=10, r=10, t=50, b=84),
         legend=dict(orientation="h", y=-0.22, x=0, title_text=""),
@@ -337,7 +327,7 @@ def program_axis_stacked_bar(program_axes: pd.DataFrame, title: str) -> go.Figur
         plot_bgcolor="rgba(0,0,0,0)",
     )
     fig.update_xaxes(title="")
-    fig.update_yaxes(title="Separated axis values", range=[0, 2])
+    fig.update_yaxes(title="Axis value", range=[0, 1])
     return fig
 
 
