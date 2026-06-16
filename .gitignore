@@ -3,6 +3,13 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .streamlit/secrets.toml
+.streamlit/secrets.*.toml
+!.streamlit/secrets.example.toml
+.env
+.env.*
+*service-account*.json
+*credentials*.json
+google*.json
 .DS_Store
 Thumbs.db
 data/*.parquet
