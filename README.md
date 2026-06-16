@@ -79,4 +79,10 @@ The app currently redirects from:
 https://demo.pishi.fyi
 ```
 
-to the Streamlit deployment.
+to a Google Analytics tracking page, which then forwards to the Streamlit deployment. In Cloudflare, point the redirect rule to:
+
+```text
+https://masoodshamsaiee.github.io/ubem-human-flexibility-demo/demo/
+```
+
+The tracking page sends a GA4 `qr_scan` event with label `qr_esim_demo`, then redirects to the Streamlit app.

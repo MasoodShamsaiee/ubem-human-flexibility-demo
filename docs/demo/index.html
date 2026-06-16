@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>eSim 2026 DSM Alignment Explorer</title>
+  <meta name="robots" content="noindex">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-37W1D9QH2N"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-37W1D9QH2N');
+  </script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      margin: 0;
+      color: #1f2a2a;
+      background: #fff;
+      text-align: center;
+    }
+    .box {
+      max-width: 540px;
+      padding: 32px;
+    }
+    a { color: #1f77b4; }
+  </style>
+</head>
+
+<body>
+  <div class="box">
+    <h1>Opening the eSim demo...</h1>
+    <p>If you are not redirected, <a id="fallback" href="https://ubem-human-flexibility-demo-hzamnztpapqj4slxnwjkhx.streamlit.app/">click here</a>.</p>
+  </div>
+
+  <script>
+    const targetUrl = "https://ubem-human-flexibility-demo-hzamnztpapqj4slxnwjkhx.streamlit.app/";
+    let redirected = false;
+
+    function go() {
+      if (redirected) return;
+      redirected = true;
+      window.location.replace(targetUrl);
+    }
+
+    try {
+      gtag('event', 'qr_scan', {
+        'event_category': 'eSim 2026 Demo',
+        'event_label': 'qr_esim_demo',
+        'transport_type': 'beacon',
+        'event_callback': go
+      });
+      setTimeout(go, 900);
+    } catch (e) {
+      go();
+    }
+  </script>
+</body>
+</html>

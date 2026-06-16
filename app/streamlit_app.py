@@ -169,13 +169,16 @@ from src.visualization import (
     energy_percentile_strip,
     energy_relationship_scatter,
     fsa_context_map,
-    program_component_axis_scatter,
     program_axis_stacked_bar,
     radar_chart,
     relevance_capacity_matrix,
     selected_distribution_bar,
     selected_vs_rest_bar,
 )
+try:
+    from src.visualization import program_component_axis_scatter
+except ImportError:
+    program_component_axis_scatter = None
 try:
     from src.visualization import stacked_breakdown_bar
 except ImportError:
@@ -982,7 +985,14 @@ def render_esim_path(
         st.subheader("What drives each program score")
         left, right = st.columns([1.15, 1])
         with left:
-            st.plotly_chart(program_component_axis_scatter(esim_breakdown, "Component source indices by axis"), width="stretch")
+            if program_component_axis_scatter is None:
+                st.dataframe(
+                    esim_breakdown[["program", "axis", "component", "source_value", "weight", "contribution"]],
+                    width="stretch",
+                    hide_index=True,
+                )
+            else:
+                st.plotly_chart(program_component_axis_scatter(esim_breakdown, "Component source indices by axis"), width="stretch")
             st.caption("Blue markers are demand-related components; orange markers are capacity-related components. Marker size shows the component weight in the program score.")
         with right:
             component_table = esim_breakdown.copy()
