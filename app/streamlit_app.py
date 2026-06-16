@@ -16,6 +16,7 @@ FEEDBACK_DIR = ROOT / "data" / "feedback"
 FEEDBACK_PATH = FEEDBACK_DIR / "user_feedback.csv"
 ESIM_MATRIX_IMAGE = ROOT / "assets" / "esim_evaluation_matrix.jpg"
 ESIM_LOGO_IMAGE = ROOT / "assets" / "esim2026_logo.png"
+PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
 
 BUILDSYS_ATTRIBUTE_SUPPORT = pd.DataFrame(
     [
@@ -865,41 +866,40 @@ def render_esim_path(
                 ("am_pm_peak_ratio", "Morning/evening peak ratio"),
                 ("ramp_up_rate", "Ramp-up rate"),
             ]
-            long_scatter, short_scatter = st.columns(2)
-            with long_scatter:
-                st.plotly_chart(
-                    energy_relationship_scatter(
-                        dsm_profiles,
-                        selected_fsa_context,
-                        x_col="heating_change_point_temp_c",
-                        y_col="heating_slope_per_hdd",
-                        title="Long-term PRISM signature",
-                        x_label="Heating change point (C)",
-                        y_label="Heating slope per HDD",
-                        color_col="baseload_intercept",
-                        color_label="Baseload intercept",
-                        size_col="winter_peak_intensity",
-                        size_label="Winter peak intensity",
-                    ),
-                    width="stretch",
-                )
-            with short_scatter:
-                st.plotly_chart(
-                    energy_relationship_scatter(
-                        dsm_profiles,
-                        selected_fsa_context,
-                        x_col="peak_load",
-                        y_col="ramp_up_rate",
-                        title="Short-term winter load signature",
-                        x_label="Daily peak load",
-                        y_label="Ramp-up rate",
-                        color_col="am_pm_peak_ratio",
-                        color_label="Morning/evening peak ratio",
-                        size_col="p90_top10_mean",
-                        size_label="Top 10% load mean",
-                    ),
-                    width="stretch",
-                )
+            st.plotly_chart(
+                energy_relationship_scatter(
+                    dsm_profiles,
+                    selected_fsa_context,
+                    x_col="heating_change_point_temp_c",
+                    y_col="heating_slope_per_hdd",
+                    title="Long-term PRISM signature",
+                    x_label="Heating change point (C)",
+                    y_label="Heating slope per HDD",
+                    color_col="baseload_intercept",
+                    color_label="Baseload intercept",
+                    size_col="winter_peak_intensity",
+                    size_label="Winter peak intensity",
+                ),
+                width="stretch",
+                config=PLOTLY_CONFIG,
+            )
+            st.plotly_chart(
+                energy_relationship_scatter(
+                    dsm_profiles,
+                    selected_fsa_context,
+                    x_col="peak_load",
+                    y_col="ramp_up_rate",
+                    title="Short-term winter load signature",
+                    x_label="Daily peak load",
+                    y_label="Ramp-up rate",
+                    color_col="am_pm_peak_ratio",
+                    color_label="Morning/evening peak ratio",
+                    size_col="p90_top10_mean",
+                    size_label="Top 10% load mean",
+                ),
+                width="stretch",
+                config=PLOTLY_CONFIG,
+            )
 
             st.dataframe(
                 energy_feature_summary_table(area_profile),
@@ -918,6 +918,7 @@ def render_esim_path(
                             "Long-term energy feature percentiles",
                         ),
                         width="stretch",
+                        config=PLOTLY_CONFIG,
                     )
                 with p_right:
                     st.plotly_chart(
@@ -928,6 +929,7 @@ def render_esim_path(
                             "Short-term load feature percentiles",
                         ),
                         width="stretch",
+                        config=PLOTLY_CONFIG,
                     )
 
         st.subheader("Socio-demographic context")
@@ -945,34 +947,33 @@ def render_esim_path(
                 ("commute_60_min_plus_pct", "Long commute share"),
             ]
             profile = dsm_profiles.copy()
-            socio_left, socio_right = st.columns(2)
-            with socio_left:
-                st.plotly_chart(
-                    energy_percentile_strip(
-                        profile,
-                        selected_fsa_context,
-                        socio_metrics,
-                        "Socio-demographic indicator percentiles",
-                    ),
-                    width="stretch",
-                )
-            with socio_right:
-                st.plotly_chart(
-                    energy_relationship_scatter(
-                        profile,
-                        selected_fsa_context,
-                        x_col="owner_pct",
-                        y_col="low_income_pct",
-                        title="Housing tenure and income context",
-                        x_label="Owner share (%)",
-                        y_label="Low-income share (%)",
-                        color_col="apartment_pct",
-                        color_label="Apartment share (%)",
-                        size_col="median_income",
-                        size_label="Median income",
-                    ),
-                    width="stretch",
-                )
+            st.plotly_chart(
+                energy_percentile_strip(
+                    profile,
+                    selected_fsa_context,
+                    socio_metrics,
+                    "Socio-demographic indicator percentiles",
+                ),
+                width="stretch",
+                config=PLOTLY_CONFIG,
+            )
+            st.plotly_chart(
+                energy_relationship_scatter(
+                    profile,
+                    selected_fsa_context,
+                    x_col="owner_pct",
+                    y_col="low_income_pct",
+                    title="Housing tenure and income context",
+                    x_label="Owner share (%)",
+                    y_label="Low-income share (%)",
+                    color_col="apartment_pct",
+                    color_label="Apartment share (%)",
+                    size_col="median_income",
+                    size_label="Median income",
+                ),
+                width="stretch",
+                config=PLOTLY_CONFIG,
+            )
 
         derived_demand_metrics = [
             ("structural_demand_relevance", "Structural demand"),
@@ -985,24 +986,23 @@ def render_esim_path(
             ("curtailment_tolerance", "Curtailment tolerance"),
         ]
         st.subheader("Derived alignment indicators")
-        left, right = st.columns(2)
-        with left:
-            st.plotly_chart(
-                selected_vs_rest_bar(real_alignment, selected_fsa_context, "fsa", derived_demand_metrics, "Demand and technical indices"),
-                width="stretch",
-            )
-        with right:
-            st.plotly_chart(
-                selected_vs_rest_bar(real_alignment, selected_fsa_context, "fsa", short_term_metrics, "Short-term flexibility indices"),
-                width="stretch",
-            )
+        st.plotly_chart(
+            selected_vs_rest_bar(real_alignment, selected_fsa_context, "fsa", derived_demand_metrics, "Demand and technical indices"),
+            width="stretch",
+            config=PLOTLY_CONFIG,
+        )
+        st.plotly_chart(
+            selected_vs_rest_bar(real_alignment, selected_fsa_context, "fsa", short_term_metrics, "Short-term flexibility indices"),
+            width="stretch",
+            config=PLOTLY_CONFIG,
+        )
 
     with tab_programs:
         st.subheader("Program analysis")
         st.write(
             "Overall program scores are shown with demand-related and capacity-related dimensions kept separate. The matrix below is secondary: click a dot when you want to move the whole app to a different FSA."
         )
-        st.plotly_chart(program_axis_stacked_bar(program_axes, "Demand and capacity axes by program"), width="stretch")
+        st.plotly_chart(program_axis_stacked_bar(program_axes, "Demand and capacity axes by program"), width="stretch", config=PLOTLY_CONFIG)
 
         program = st.radio("Matrix program", list(ESIM_PROGRAM_AXES), horizontal=True, key="esim_results_matrix_program")
         config = ESIM_PROGRAM_AXES[program]
@@ -1029,6 +1029,7 @@ def render_esim_path(
                 capacity_label=config["capacity_label"],
             ),
             width="stretch",
+            config=PLOTLY_CONFIG,
             key=f"esim_matrix_{program}",
             on_select="rerun",
             selection_mode=["points"],
@@ -1050,42 +1051,39 @@ def render_esim_path(
         st.dataframe(count_table, width="stretch", hide_index=True)
 
         st.subheader("What drives each program score")
-        left, right = st.columns([1.15, 1])
-        with left:
-            if program_component_axis_scatter is None:
-                st.dataframe(
-                    esim_breakdown[["program", "axis", "component", "source_value", "weight", "contribution"]],
-                    width="stretch",
-                    hide_index=True,
-                )
-            else:
-                st.plotly_chart(program_component_axis_scatter(esim_breakdown, "Component source indices by axis"), width="stretch")
-            st.caption("Blue markers are demand-related components; orange markers are capacity-related components. Marker size shows the component weight in the program score.")
-        with right:
-            component_table = esim_breakdown.copy()
-            component_table["Source index"] = component_table["source_value"].map(lambda value: f"{float(value):.2f}")
-            component_table["Weight"] = component_table["weight"].map(lambda value: f"{float(value):.2f}")
-            component_table["Weighted contribution"] = component_table["contribution"].map(lambda value: f"{float(value):.3f}")
+        if program_component_axis_scatter is None:
             st.dataframe(
-                component_table[
-                    ["program", "axis", "component", "Source index", "Weight", "Weighted contribution", "description"]
-                ].rename(
-                    columns={
-                        "program": "Program",
-                        "axis": "Axis",
-                        "component": "Component",
-                        "description": "Interpretation",
-                    }
-                ),
+                esim_breakdown[["program", "axis", "component", "source_value", "weight", "contribution"]],
                 width="stretch",
                 hide_index=True,
             )
+        else:
+                st.plotly_chart(program_component_axis_scatter(esim_breakdown, "Component source indices by axis"), width="stretch", config=PLOTLY_CONFIG)
+        st.caption("Blue markers are demand-related components; orange markers are capacity-related components. Marker size shows the component weight in the program score.")
+        component_table = esim_breakdown.copy()
+        component_table["Source index"] = component_table["source_value"].map(lambda value: f"{float(value):.2f}")
+        component_table["Weight"] = component_table["weight"].map(lambda value: f"{float(value):.2f}")
+        component_table["Weighted contribution"] = component_table["contribution"].map(lambda value: f"{float(value):.3f}")
+        st.dataframe(
+            component_table[
+                ["program", "axis", "component", "Source index", "Weight", "Weighted contribution", "description"]
+            ].rename(
+                columns={
+                    "program": "Program",
+                    "axis": "Axis",
+                    "component": "Component",
+                    "description": "Interpretation",
+                }
+            ),
+            width="stretch",
+            hide_index=True,
+        )
         st.info(
             "These are FSA-level normalized indices from the DSM report workflow. They describe local structural fit, not a resident-level recommendation."
         )
 
     with tab_info:
-        st.subheader("Workflow notes and references")
+        st.subheader("Workflow notes")
         st.write(
             "This workflow evaluates structural alignment rather than realized program impacts. It asks whether each DSM program's assumptions are co-located with FSA-level demand pressures and socio-demographic conditions."
         )
@@ -1095,13 +1093,14 @@ def render_esim_path(
             "- **Interpretation**: high-demand FSAs are not automatically high-flexibility, high-eligibility, high-capacity, or high-vulnerability FSAs.\n"
             "- **Current demo data boundary**: raw PRISM and short-term aggregate features are now present for the 94 Montreal FSAs in the alignment extract; usable DTW cluster labels, hourly average daily profiles, and full DML feature-importance tables are still not included in this compact deploy artifact.\n"
             "- **Author links**: [Google Scholar](https://scholar.google.com/citations?hl=en&user=7BeRoW4AAAAJ) | [LinkedIn](https://ca.linkedin.com/in/masoodshamsaiee).\n"
-            "- **References**: [Energy & Buildings article record](https://ui.adsabs.harvard.edu/abs/2026EneBu.35216793S/abstract) | [SSRN preprint](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5381520).\n"
-            "- **Contact**: Masood Shamsaiee, Next-Generation Cities Institute, Concordia University."
+            "- **Contact**: Masood Shamsaiee, Next-Generation Cities Institute, Concordia University | [m.shamsaiee@gmail.com](mailto:m.shamsaiee@gmail.com)."
         )
         st.subheader("Program-specific assumptions")
         st.dataframe(ESIM_PROGRAM_CONTEXT, width="stretch", hide_index=True)
         if ESIM_MATRIX_IMAGE.exists():
-            st.image(str(ESIM_MATRIX_IMAGE), caption="Relevance-capacity matrix used by this workflow.")
+            image_left, image_center, image_right = st.columns([0.15, 0.7, 0.15])
+            with image_center:
+                st.image(str(ESIM_MATRIX_IMAGE), caption="Relevance-capacity matrix used by this workflow.", width=420)
 
 
 @st.cache_data
@@ -1158,6 +1157,7 @@ map_event = st.plotly_chart(
         title="Primary FSA selector",
     ),
     width="stretch",
+    config=PLOTLY_CONFIG,
     key="primary_fsa_map",
     on_select="rerun",
     selection_mode=["points"],

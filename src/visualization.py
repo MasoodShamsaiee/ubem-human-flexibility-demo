@@ -197,9 +197,9 @@ def energy_percentile_strip(
     )
     fig.update_layout(
         title=title,
-        height=max(330, 52 * len(metric_order) + 110),
-        margin=dict(l=10, r=28, t=50, b=44),
-        legend=dict(orientation="h", y=-0.16, x=0, title_text=""),
+        height=max(300, 42 * len(metric_order) + 100),
+        margin=dict(l=6, r=14, t=44, b=40),
+        legend=dict(orientation="h", y=-0.14, x=0, title_text=""),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
     )
@@ -284,9 +284,9 @@ def energy_relationship_scatter(
         )
     fig.update_layout(
         title=title,
-        height=390,
-        margin=dict(l=10, r=12, t=50, b=48),
-        legend=dict(orientation="h", y=-0.16, x=0, title_text=""),
+        height=340,
+        margin=dict(l=6, r=8, t=44, b=42),
+        legend=dict(orientation="h", y=-0.15, x=0, title_text=""),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
     )
@@ -320,9 +320,9 @@ def program_axis_stacked_bar(program_axes: pd.DataFrame, title: str) -> go.Figur
     fig.update_layout(
         title=title,
         barmode="group",
-        height=390,
-        margin=dict(l=10, r=10, t=50, b=84),
-        legend=dict(orientation="h", y=-0.22, x=0, title_text=""),
+        height=330,
+        margin=dict(l=6, r=8, t=44, b=74),
+        legend=dict(orientation="h", y=-0.24, x=0, title_text=""),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
     )
@@ -367,8 +367,8 @@ def program_component_axis_scatter(breakdown: pd.DataFrame, title: str) -> go.Fi
         )
     fig.update_layout(
         title=title,
-        height=max(430, 34 * len(label_order) + 120),
-        margin=dict(l=12, r=20, t=52, b=48),
+        height=max(390, 30 * len(label_order) + 105),
+        margin=dict(l=6, r=12, t=46, b=44),
         legend=dict(orientation="h", y=-0.13, x=0, title_text=""),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
@@ -624,9 +624,9 @@ def relevance_capacity_matrix(
     fig.add_hline(y=rel_threshold, line_dash="dash", line_color="#2F6B63", opacity=0.75)
     fig.update_layout(
         title=title,
-        height=520,
-        margin=dict(l=12, r=12, t=42, b=28),
-        legend=dict(orientation="h", y=1.08, x=0, title_text=""),
+        height=390,
+        margin=dict(l=8, r=8, t=42, b=58),
+        legend=dict(orientation="h", y=-0.18, x=0, title_text=""),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         clickmode="event+select",
@@ -1085,7 +1085,7 @@ def fsa_context_map(
             center=dict(lat=45.56, lon=-73.67),
             zoom=8.9,
         ),
-        height=500,
+        height=430,
         margin=dict(l=0, r=0, t=38, b=0),
         paper_bgcolor="rgba(0,0,0,0)",
         clickmode="event+select",
