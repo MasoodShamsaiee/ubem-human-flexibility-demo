@@ -293,6 +293,18 @@ st.markdown(
         line-height: 1.25;
         margin: 0.12rem 0;
     }
+    .feedback-callout {
+        border: 1px solid #1f77b4;
+        border-left: 6px solid #ff7f0e;
+        background: #f7fbff;
+        border-radius: 8px;
+        padding: 0.9rem 1rem;
+        margin: 0.75rem 0 1rem 0;
+        color: #1f2a2a;
+    }
+    .feedback-callout strong {
+        color: #1f77b4;
+    }
     .path-card {
         border: 1px solid #D8E0DB;
         background: #FFFFFF;
@@ -500,6 +512,61 @@ def read_feedback() -> pd.DataFrame:
     if not FEEDBACK_PATH.exists():
         return pd.DataFrame()
     return pd.read_csv(FEEDBACK_PATH)
+
+
+def render_feedback_form(
+    *,
+    form_key: str,
+    demo_mode: str,
+    selected_fsa_context: str,
+    top_program: str,
+    top_alignment_score: float,
+) -> None:
+    with st.form(form_key, clear_on_submit=True):
+        feedback_section = st.selectbox(
+            "What are you reacting to?",
+            [
+                "Overall demo",
+                "Map/FSA selection",
+                "FSA energy features",
+                "Socio-demographic context",
+                "Program analysis",
+                "Relevance-capacity matrix",
+                "Scientific interpretation",
+            ],
+            key=f"{form_key}_section",
+        )
+        feedback_rating = st.radio(
+            "How clear was it?",
+            ["Very clear", "Mostly clear", "Unclear", "Confusing"],
+            horizontal=True,
+            key=f"{form_key}_rating",
+        )
+        feedback_comment = st.text_area(
+            "Feedback",
+            placeholder="What worked, what was confusing, or what should be improved?",
+            height=120,
+            key=f"{form_key}_comment",
+        )
+        feedback_role = st.text_input("Role or affiliation", placeholder="Optional", key=f"{form_key}_role")
+        submitted = st.form_submit_button("Submit feedback", type="primary", width="stretch")
+    if submitted:
+        if not feedback_comment.strip():
+            st.warning("Please add a short comment before submitting.")
+        else:
+            save_feedback(
+                {
+                    "demo_mode": demo_mode,
+                    "section": feedback_section,
+                    "clarity_rating": feedback_rating,
+                    "comment": feedback_comment.strip(),
+                    "role_or_affiliation": feedback_role.strip(),
+                    "selected_fsa": str(selected_fsa_context),
+                    "top_program": str(top_program),
+                    "top_alignment_score": f"{float(top_alignment_score):.4f}",
+                }
+            )
+            st.success("Thanks. Feedback submitted.")
 
 
 def render_intro(metadata: dict) -> None:
@@ -1149,49 +1216,41 @@ if not selected_fsa_scores.empty:
     top = esim_program_score_rows(selected_fsa_scores.iloc[0]).iloc[0]
 
 with st.sidebar:
-    with st.expander("Send feedback", expanded=False):
-        st.caption("Share what worked, what was confusing, or what should be improved.")
-        with st.form("feedback_form", clear_on_submit=True):
-            feedback_section = st.selectbox(
-                "What are you reacting to?",
-                [
-                    "Overall demo",
-                    "Map/FSA selection",
-                    "FSA energy features",
-                    "Socio-demographic context",
-                    "Program analysis",
-                    "Relevance-capacity matrix",
-                    "Scientific interpretation",
-                ],
-            )
-            feedback_rating = st.radio(
-                "How clear was it?",
-                ["Very clear", "Mostly clear", "Unclear", "Confusing"],
-                horizontal=False,
-            )
-            feedback_comment = st.text_area(
-                "Feedback",
-                placeholder="What worked, what was confusing, or what should be improved?",
-                height=120,
-            )
-            feedback_role = st.text_input("Role or affiliation", placeholder="Optional")
-            submitted = st.form_submit_button("Submit feedback", type="primary", width="stretch")
-        if submitted:
-            if not feedback_comment.strip():
-                st.warning("Please add a short comment before submitting.")
-            else:
-                save_feedback(
-                    {
-                        "demo_mode": demo_mode,
-                        "section": feedback_section,
-                        "clarity_rating": feedback_rating,
-                        "comment": feedback_comment.strip(),
-                        "role_or_affiliation": feedback_role.strip(),
-                        "selected_fsa": str(selected_fsa_context),
-                        "top_program": str(top["program"]),
-                        "top_alignment_score": f"{float(top['alignment_score']):.4f}",
-                    }
-                )
-                st.success("Thanks. Feedback submitted.")
+    st.markdown(
+        """
+        <div class="feedback-callout">
+          <strong>Feedback requested</strong><br>
+          Please leave a quick note before you close the demo.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    with st.expander("Send feedback", expanded=True):
+        render_feedback_form(
+            form_key="sidebar_feedback_form",
+            demo_mode=demo_mode,
+            selected_fsa_context=selected_fsa_context,
+            top_program=str(top["program"]),
+            top_alignment_score=float(top["alignment_score"]),
+        )
 
 render_esim_path(selected_fsa_context, real_alignment, all_fsa_scores, population, valid_fsas)
+
+st.divider()
+st.subheader("Share feedback")
+st.markdown(
+    """
+    <div class="feedback-callout">
+      <strong>Your feedback helps improve the eSim demo.</strong><br>
+      Please tell me what was clear, what was confusing, or what you expected to see next.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+render_feedback_form(
+    form_key="main_feedback_form",
+    demo_mode=demo_mode,
+    selected_fsa_context=selected_fsa_context,
+    top_program=str(top["program"]),
+    top_alignment_score=float(top["alignment_score"]),
+)
