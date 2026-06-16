@@ -67,9 +67,9 @@ Supported public household fields include `area`, `household_id`, `household_siz
 
 `data/demo_synthetic_population.csv` combines supported person and household columns into one small resident table for easy conference interaction.
 
-`data/demo_dsm_profiles.csv` contains demo-safe area-context proxies that mirror DSM feature names:
+`data/demo_dsm_profiles.csv` contains compact FSA-level area-context features derived from the processed Montreal DSM tables:
 
-- energy features: `winter_peak_share`, `heating_slope_per_hdd`, `winter_peak_intensity`, `peak_load`, `p90_top10_mean`, `mean_load`, `am_pm_peak_ratio`
+- energy features for the 94 Montreal FSAs in the alignment extract: `winter_peak_share`, `heating_slope_per_hdd`, `heating_change_point_temp_c`, `baseload_intercept`, `cooling_slope_per_cdd`, `winter_peak_intensity`, `peak_load`, `p90_top10_mean`, `mean_load`, `am_pm_peak_ratio`, and `ramp_up_rate`
 - census-style proxies: `owner_pct`, `renter_pct`, `single_detached_house_pct`, `apartment_pct`, `average_household_size`, `children_0_14_pct`, `older_65_plus_pct`, `full_year_full_time_pct`, `not_in_labour_force_pct`, `one_parent_family_pct`, `commute_60_min_plus_pct`, `persons_per_room_high_pct`, `non_movers_1yr_pct`, `median_income`, `low_income_pct`
 
 All values are illustrative and non-sensitive.
@@ -80,13 +80,36 @@ All values are illustrative and non-sensitive.
 
 ## Feedback Collection
 
-The app includes a sidebar feedback form for conference participants. Submissions are saved locally to:
+The app includes a sidebar feedback form for conference participants. The submitted results are not shown in the public app.
+
+For Streamlit Community deployment, feedback can be appended directly to a Google Sheet. Create a Google Cloud service account, share the target Sheet with the service-account `client_email`, then add the values from `.streamlit/secrets.example.toml` to the app's Streamlit Secrets. The expected secrets are:
+
+```toml
+[feedback]
+google_sheet_id = "..."
+worksheet_name = "feedback"
+
+[google_service_account]
+type = "service_account"
+project_id = "..."
+private_key_id = "..."
+private_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+client_email = "..."
+client_id = "..."
+auth_uri = "https://accounts.google.com/o/oauth2/auth"
+token_uri = "https://oauth2.googleapis.com/token"
+auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
+client_x509_cert_url = "..."
+universe_domain = "googleapis.com"
+```
+
+If Google Sheets secrets are not configured, submissions fall back to local development storage at:
 
 ```text
 data/feedback/user_feedback.csv
 ```
 
-Each row includes timestamp, demo path, section, clarity rating, comment, optional role/affiliation, selected FSA, selected resident, source DA, and the current top DSM program/score. The `data/feedback/` folder is git-ignored by default.
+Each row includes timestamp, demo path, section, clarity rating, comment, optional role/affiliation, selected FSA, selected resident, source DA, and the current top DSM program/score. The `data/feedback/` folder and real `.streamlit/secrets.toml` file are git-ignored by default.
 
 ## Scoring Logic
 

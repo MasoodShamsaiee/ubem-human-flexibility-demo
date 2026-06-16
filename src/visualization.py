@@ -5,32 +5,37 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
-COLOR_SEQUENCE = ["#2F6B63", "#D08C60", "#6E7FA8", "#B85C5C", "#7C9A5B", "#6B5B95"]
-AREA_COLOR = "#6E7FA8"
-SELECTED_COLOR = "#B85C5C"
+MPL_BLUE = "#1f77b4"
+MPL_LIGHT_BLUE = "#aec7e8"
+MPL_ORANGE = "#ff7f0e"
+MPL_LIGHT_ORANGE = "#ffbb78"
+
+COLOR_SEQUENCE = [MPL_BLUE, MPL_ORANGE, "#2ca02c", "#d62728", "#9467bd", "#8c564b"]
+AREA_COLOR = MPL_BLUE
+SELECTED_COLOR = MPL_ORANGE
 COMPONENT_COLORS = {
-    "Demand relevance": "#2F6B63",
-    "Temporal flexibility": "#D08C60",
-    "Demand elasticity": "#6E7FA8",
-    "Technical eligibility": "#D08C60",
-    "Control authority": "#6E7FA8",
-    "Curtailment tolerance": "#7C9A5B",
-    "Structural demand": "#2F6B63",
-    "Adoption capacity": "#D08C60",
-    "Persistence capacity": "#6E7FA8",
-    "System relevance": "#2F6B63",
-    "Energy vulnerability": "#D08C60",
-    "Household resemblance": "#B85C5C",
+    "Demand relevance": MPL_BLUE,
+    "Temporal flexibility": MPL_ORANGE,
+    "Demand elasticity": MPL_LIGHT_BLUE,
+    "Technical eligibility": MPL_LIGHT_ORANGE,
+    "Control authority": MPL_LIGHT_BLUE,
+    "Curtailment tolerance": "#2ca02c",
+    "Structural demand": MPL_BLUE,
+    "Adoption capacity": MPL_ORANGE,
+    "Persistence capacity": MPL_LIGHT_BLUE,
+    "System relevance": MPL_BLUE,
+    "Energy vulnerability": MPL_ORANGE,
+    "Household resemblance": "#d62728",
 }
 ALIGNMENT_CLASS_COLORS = {
-    "Ideal target": "#2F8F5B",
-    "Policy gap": "#D89A3D",
-    "Low priority": "#8C83D8",
-    "Minimal impact": "#C95F5F",
+    "Ideal target": MPL_BLUE,
+    "Policy gap": MPL_ORANGE,
+    "Low priority": "#9467bd",
+    "Minimal impact": "#d62728",
 }
-DEMAND_COLOR = "#2F6B63"
-CAPACITY_COLOR = "#D08C60"
-REST_COLOR = "#B9C4C0"
+DEMAND_COLOR = MPL_BLUE
+CAPACITY_COLOR = MPL_ORANGE
+REST_COLOR = MPL_LIGHT_BLUE
 
 
 def selected_vs_rest_bar(
@@ -39,15 +44,31 @@ def selected_vs_rest_bar(
     key_col: str,
     metrics: list[tuple[str, str]],
     title: str,
+    xaxis_title: str = "Normalized index",
+    fixed_unit_range: bool = True,
+    normalize_per_metric: bool = False,
 ) -> go.Figure:
     selected = frame.loc[frame[key_col].eq(selected_key)]
     labels = [label for _, label in metrics]
-    if selected.empty:
-        selected_values = [0.0 for _ in metrics]
-    else:
-        selected_values = [float(selected.iloc[0][column]) for column, _ in metrics]
     rest = frame.loc[~frame[key_col].eq(selected_key)]
-    rest_values = [float(rest[column].mean()) if not rest.empty else 0.0 for column, _ in metrics]
+    selected_values = []
+    rest_values = []
+    for column, _ in metrics:
+        all_values = pd.to_numeric(frame[column], errors="coerce")
+        selected_value = (
+            float(pd.to_numeric(pd.Series([selected.iloc[0][column]]), errors="coerce").iloc[0])
+            if not selected.empty
+            else 0.0
+        )
+        rest_value = float(pd.to_numeric(rest[column], errors="coerce").mean()) if not rest.empty else 0.0
+        if normalize_per_metric:
+            min_value = float(all_values.min()) if not all_values.dropna().empty else 0.0
+            max_value = float(all_values.max()) if not all_values.dropna().empty else 1.0
+            span = max(max_value - min_value, 1e-9)
+            selected_value = (selected_value - min_value) / span
+            rest_value = (rest_value - min_value) / span
+        selected_values.append(0.0 if pd.isna(selected_value) else selected_value)
+        rest_values.append(0.0 if pd.isna(rest_value) else rest_value)
     fig = go.Figure()
     fig.add_trace(
         go.Bar(
@@ -78,7 +99,9 @@ def selected_vs_rest_bar(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
     )
-    fig.update_xaxes(title="Normalized index", range=[0, 1])
+    max_value = max(selected_values + rest_values + [0.01])
+    x_range = [0, 1] if fixed_unit_range else [0, max_value * 1.18]
+    fig.update_xaxes(title=xaxis_title, range=x_range)
     fig.update_yaxes(title="", autorange="reversed")
     return fig
 
@@ -113,6 +136,162 @@ def selected_distribution_bar(
     )
     fig.update_xaxes(title="", tickangle=-25)
     fig.update_yaxes(title="Resident-option share", tickformat=".0%")
+    return fig
+
+
+def energy_percentile_strip(
+    frame: pd.DataFrame,
+    selected_fsa: str,
+    metrics: list[tuple[str, str]],
+    title: str,
+) -> go.Figure:
+    rows = []
+    for column, label in metrics:
+        values = pd.to_numeric(frame[column], errors="coerce")
+        ranks = values.rank(pct=True, method="average") * 100
+        for fsa, value, percentile in zip(frame["fsa_context"], values, ranks, strict=False):
+            if pd.isna(value) or pd.isna(percentile):
+                continue
+            rows.append(
+                {
+                    "fsa_context": fsa,
+                    "Metric": label,
+                    "Percentile": float(percentile),
+                    "Raw value": float(value),
+                    "Selected": fsa == selected_fsa,
+                }
+            )
+    data = pd.DataFrame(rows)
+    fig = go.Figure()
+    if data.empty:
+        fig.update_layout(title=title, height=320)
+        return fig
+    metric_order = [label for _, label in metrics]
+    for metric in metric_order:
+        part = data.loc[data["Metric"].eq(metric) & ~data["Selected"]]
+        fig.add_trace(
+            go.Scatter(
+                x=part["Percentile"],
+                y=part["Metric"],
+                mode="markers",
+                name="Other FSAs",
+                marker=dict(size=8, color=REST_COLOR, opacity=0.48),
+                customdata=part[["fsa_context", "Raw value"]],
+                hovertemplate="<b>%{customdata[0]}</b><br>%{y}<br>Percentile: %{x:.0f}<br>Raw value: %{customdata[1]:.4g}<extra></extra>",
+                showlegend=metric == metric_order[0],
+            )
+        )
+    selected = data.loc[data["Selected"]]
+    fig.add_trace(
+        go.Scatter(
+            x=selected["Percentile"],
+            y=selected["Metric"],
+            mode="markers+text",
+            name=selected_fsa,
+            marker=dict(size=16, color=SELECTED_COLOR, symbol="diamond"),
+            text=selected["Percentile"].map(lambda value: f"{value:.0f}"),
+            textposition="middle right",
+            customdata=selected[["Raw value"]],
+            hovertemplate="<b>" + selected_fsa + "</b><br>%{y}<br>Percentile: %{x:.0f}<br>Raw value: %{customdata[0]:.4g}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        title=title,
+        height=max(330, 52 * len(metric_order) + 110),
+        margin=dict(l=10, r=28, t=50, b=44),
+        legend=dict(orientation="h", y=-0.16, x=0, title_text=""),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_xaxes(title="Percentile among Montreal FSAs", range=[0, 103], ticksuffix="%")
+    fig.update_yaxes(title="", categoryorder="array", categoryarray=metric_order[::-1])
+    return fig
+
+
+def energy_relationship_scatter(
+    frame: pd.DataFrame,
+    selected_fsa: str,
+    x_col: str,
+    y_col: str,
+    title: str,
+    x_label: str,
+    y_label: str,
+    color_col: str | None = None,
+    color_label: str | None = None,
+    size_col: str | None = None,
+    size_label: str | None = None,
+) -> go.Figure:
+    data = frame.copy()
+    data[x_col] = pd.to_numeric(data[x_col], errors="coerce")
+    data[y_col] = pd.to_numeric(data[y_col], errors="coerce")
+    color_values = pd.to_numeric(data[color_col], errors="coerce") if color_col else None
+    if size_col:
+        size_values = pd.to_numeric(data[size_col], errors="coerce")
+        span = max(float(size_values.max() - size_values.min()), 1e-9)
+        data["_marker_size"] = 9 + 17 * ((size_values - size_values.min()) / span).fillna(0)
+    else:
+        data["_marker_size"] = 11
+    data["_is_selected"] = data["fsa_context"].eq(selected_fsa)
+    other = data.loc[~data["_is_selected"]]
+    selected = data.loc[data["_is_selected"]]
+    fig = go.Figure()
+    marker = dict(size=other["_marker_size"], color=REST_COLOR, opacity=0.62)
+    if color_col and color_values is not None:
+        marker = dict(
+            size=other["_marker_size"],
+            color=pd.to_numeric(other[color_col], errors="coerce"),
+            colorscale=[[0, "#deebf7"], [0.5, MPL_LIGHT_BLUE], [1, MPL_BLUE]],
+            colorbar=dict(title=color_label or color_col, thickness=12),
+            opacity=0.74,
+        )
+    custom_cols = ["fsa_context"]
+    if color_col:
+        custom_cols.append(color_col)
+    if size_col:
+        custom_cols.append(size_col)
+    hover = f"<b>%{{customdata[0]}}</b><br>{x_label}: %{{x:.4g}}<br>{y_label}: %{{y:.4g}}"
+    custom_index = 1
+    if color_col:
+        hover += f"<br>{color_label or color_col}: %{{customdata[{custom_index}]:.4g}}"
+        custom_index += 1
+    if size_col:
+        hover += f"<br>{size_label or size_col}: %{{customdata[{custom_index}]:.4g}}"
+    hover += "<extra></extra>"
+    fig.add_trace(
+        go.Scatter(
+            x=other[x_col],
+            y=other[y_col],
+            mode="markers",
+            name="Other FSAs",
+            marker=marker,
+            customdata=other[custom_cols],
+            hovertemplate=hover,
+        )
+    )
+    if not selected.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=selected[x_col],
+                y=selected[y_col],
+                mode="markers+text",
+                name=selected_fsa,
+                marker=dict(size=22, color=SELECTED_COLOR, symbol="star", line=dict(width=1.5, color="#FFFFFF")),
+                text=selected["fsa_context"],
+                textposition="top center",
+                customdata=selected[custom_cols],
+                hovertemplate=hover,
+            )
+        )
+    fig.update_layout(
+        title=title,
+        height=390,
+        margin=dict(l=10, r=12, t=50, b=48),
+        legend=dict(orientation="h", y=-0.16, x=0, title_text=""),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_xaxes(title=x_label, zeroline=False)
+    fig.update_yaxes(title=y_label, zeroline=False)
     return fig
 
 

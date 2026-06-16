@@ -191,6 +191,8 @@ from src.visualization import (
     average_vs_heterogeneous,
     comparison_bar,
     distribution_bar,
+    energy_percentile_strip,
+    energy_relationship_scatter,
     fsa_context_map,
     program_axis_stacked_bar,
     radar_chart,
@@ -460,14 +462,59 @@ def render_field_cards(fields: dict[str, str]) -> None:
 
 
 def save_feedback(entry: dict[str, str]) -> None:
-    FEEDBACK_DIR.mkdir(parents=True, exist_ok=True)
     row = {
         "feedback_id": str(uuid.uuid4()),
         "submitted_at_utc": datetime.now(timezone.utc).isoformat(),
         **entry,
     }
+    if save_feedback_to_google_sheet(row):
+        return
+    save_feedback_to_csv(row)
+
+
+def save_feedback_to_csv(row: dict[str, str]) -> None:
+    FEEDBACK_DIR.mkdir(parents=True, exist_ok=True)
     frame = pd.DataFrame([row])
     frame.to_csv(FEEDBACK_PATH, mode="a", header=not FEEDBACK_PATH.exists(), index=False, encoding="utf-8")
+
+
+def secret_section(name: str) -> dict:
+    try:
+        return dict(st.secrets.get(name, {}))
+    except Exception:
+        return {}
+
+
+def save_feedback_to_google_sheet(row: dict[str, str]) -> bool:
+    feedback_config = secret_section("feedback")
+    service_account_info = secret_section("google_service_account")
+    sheet_id = feedback_config.get("google_sheet_id") or feedback_config.get("sheet_id")
+    worksheet_name = feedback_config.get("worksheet_name", "feedback")
+    if not sheet_id or not service_account_info:
+        return False
+    try:
+        import gspread
+
+        client = gspread.service_account_from_dict(service_account_info)
+        spreadsheet = client.open_by_key(sheet_id)
+        try:
+            worksheet = spreadsheet.worksheet(worksheet_name)
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = spreadsheet.add_worksheet(title=worksheet_name, rows=1000, cols=max(20, len(row)))
+        columns = list(row)
+        existing_header = worksheet.row_values(1)
+        if not existing_header:
+            worksheet.append_row(columns, value_input_option="USER_ENTERED")
+            existing_header = columns
+        for column in columns:
+            if column not in existing_header:
+                existing_header.append(column)
+        if existing_header != worksheet.row_values(1):
+            worksheet.update("A1", [existing_header])
+        worksheet.append_row([row.get(column, "") for column in existing_header], value_input_option="USER_ENTERED")
+        return True
+    except Exception:
+        return False
 
 
 def read_feedback() -> pd.DataFrame:
@@ -762,6 +809,31 @@ def selected_area_profile(dsm_profiles: pd.DataFrame, selected_fsa_context: str)
     return matches.iloc[0]
 
 
+def energy_feature_cards(area_profile: pd.Series) -> dict[str, str]:
+    fields = {
+        "Winter peak share": f"{float(area_profile['winter_peak_share']):.3f}",
+        "Heating slope per HDD": f"{float(area_profile['heating_slope_per_hdd']):.2f}",
+        "Heating change point": f"{float(area_profile['heating_change_point_temp_c']):.1f} C",
+        "Baseload intercept": f"{float(area_profile['baseload_intercept']):.2f}",
+        "Cooling slope per CDD": f"{float(area_profile['cooling_slope_per_cdd']):.3f}",
+        "Winter peak intensity": f"{float(area_profile['winter_peak_intensity']):.2f}",
+        "Daily peak load": f"{float(area_profile['peak_load']):.2f}",
+        "Top 10% load mean": f"{float(area_profile['p90_top10_mean']):.2f}",
+        "Mean load": f"{float(area_profile['mean_load']):.2f}",
+        "Morning/evening peak ratio": f"{float(area_profile['am_pm_peak_ratio']):.2f}",
+        "Ramp-up rate": f"{float(area_profile['ramp_up_rate']):.3f}",
+    }
+    cluster = area_profile.get("dtw_cluster_label")
+    if pd.notna(cluster):
+        fields["DTW cluster label"] = str(cluster)
+    return fields
+
+
+def available_energy_fsa_text(dsm_profiles: pd.DataFrame) -> str:
+    fsas = dsm_profiles["fsa_context"].dropna().drop_duplicates().sort_values().tolist()
+    return ", ".join(fsas)
+
+
 def render_esim_path(
     selected_fsa_context: str,
     real_alignment: pd.DataFrame,
@@ -796,7 +868,95 @@ def render_esim_path(
         with m4:
             st.metric("Energy vulnerability", f"{float(report_row['energy_vulnerability']):.2f}")
 
-        prism_metrics = [
+        st.subheader("Energy-demand features")
+        st.caption(f"Raw energy-profile data are available for {dsm_profiles['fsa_context'].nunique()} FSAs: {available_energy_fsa_text(dsm_profiles)}.")
+        if area_profile is None:
+            st.info(
+                "Raw PRISM/load feature rows are not included for this FSA in the current demo extract. "
+                "The FSA-wide alignment indices above are still available, but the paper's raw energy-feature diagnostics "
+                "should be added for full manuscript fidelity."
+            )
+        else:
+            st.caption(
+                "Available energy features from the processed Montreal FSA DSM tables. These align with the paper's PRISM and short-term winter-load feature layer; hourly average daily profiles and usable DTW cluster labels are still not included in this compact deploy artifact."
+            )
+            long_term_energy_metrics = [
+                ("heating_slope_per_hdd", "Heating slope per HDD"),
+                ("heating_change_point_temp_c", "Heating change point"),
+                ("baseload_intercept", "Baseload intercept"),
+                ("cooling_slope_per_cdd", "Cooling slope per CDD"),
+                ("winter_peak_share", "Winter peak share"),
+                ("winter_peak_intensity", "Winter peak intensity"),
+            ]
+            short_term_energy_metrics = [
+                ("peak_load", "Daily peak load"),
+                ("p90_top10_mean", "Top 10% load mean"),
+                ("mean_load", "Mean load"),
+                ("am_pm_peak_ratio", "Morning/evening peak ratio"),
+                ("ramp_up_rate", "Ramp-up rate"),
+            ]
+            long_scatter, short_scatter = st.columns(2)
+            with long_scatter:
+                st.plotly_chart(
+                    energy_relationship_scatter(
+                        dsm_profiles,
+                        selected_fsa_context,
+                        x_col="heating_change_point_temp_c",
+                        y_col="heating_slope_per_hdd",
+                        title="Long-term PRISM signature",
+                        x_label="Heating change point (C)",
+                        y_label="Heating slope per HDD",
+                        color_col="baseload_intercept",
+                        color_label="Baseload intercept",
+                        size_col="winter_peak_intensity",
+                        size_label="Winter peak intensity",
+                    ),
+                    width="stretch",
+                )
+            with short_scatter:
+                st.plotly_chart(
+                    energy_relationship_scatter(
+                        dsm_profiles,
+                        selected_fsa_context,
+                        x_col="peak_load",
+                        y_col="ramp_up_rate",
+                        title="Short-term winter load signature",
+                        x_label="Daily peak load",
+                        y_label="Ramp-up rate",
+                        color_col="am_pm_peak_ratio",
+                        color_label="Morning/evening peak ratio",
+                        size_col="p90_top10_mean",
+                        size_label="Top 10% load mean",
+                    ),
+                    width="stretch",
+                )
+
+            render_field_cards(energy_feature_cards(area_profile))
+
+            with st.expander("Energy metric percentiles", expanded=False):
+                p_left, p_right = st.columns(2)
+                with p_left:
+                    st.plotly_chart(
+                        energy_percentile_strip(
+                            dsm_profiles,
+                            selected_fsa_context,
+                            long_term_energy_metrics,
+                            "Long-term energy feature percentiles",
+                        ),
+                        width="stretch",
+                    )
+                with p_right:
+                    st.plotly_chart(
+                        energy_percentile_strip(
+                            dsm_profiles,
+                            selected_fsa_context,
+                            short_term_energy_metrics,
+                            "Short-term load feature percentiles",
+                        ),
+                        width="stretch",
+                    )
+
+        derived_demand_metrics = [
             ("structural_demand_relevance", "Structural demand"),
             ("technical_eligibility", "Technical eligibility"),
             ("demand_relevance", "Demand relevance"),
@@ -806,15 +966,16 @@ def render_esim_path(
             ("demand_elasticity", "Demand elasticity"),
             ("curtailment_tolerance", "Curtailment tolerance"),
         ]
+        st.subheader("Derived alignment indicators")
         left, right = st.columns(2)
         with left:
             st.plotly_chart(
-                selected_vs_rest_bar(real_alignment, selected_fsa_context, "fsa", prism_metrics, "PRISM and demand-relevance indicators"),
+                selected_vs_rest_bar(real_alignment, selected_fsa_context, "fsa", derived_demand_metrics, "Demand and technical indices"),
                 width="stretch",
             )
         with right:
             st.plotly_chart(
-                selected_vs_rest_bar(real_alignment, selected_fsa_context, "fsa", short_term_metrics, "Short-term flexibility indicators"),
+                selected_vs_rest_bar(real_alignment, selected_fsa_context, "fsa", short_term_metrics, "Short-term flexibility indices"),
                 width="stretch",
             )
 
@@ -833,15 +994,34 @@ def render_esim_path(
                 ("commute_60_min_plus_pct", "Long commute share"),
             ]
             profile = dsm_profiles.copy()
-            for column, _ in socio_metrics:
-                if column in profile.columns:
-                    max_value = float(profile[column].max())
-                    if max_value > 1:
-                        profile[column] = profile[column] / 100
-            st.plotly_chart(
-                selected_vs_rest_bar(profile, selected_fsa_context, "fsa_context", socio_metrics, "Selected FSA socio-demographic profile"),
-                width="stretch",
-            )
+            socio_left, socio_right = st.columns(2)
+            with socio_left:
+                st.plotly_chart(
+                    energy_percentile_strip(
+                        profile,
+                        selected_fsa_context,
+                        socio_metrics,
+                        "Socio-demographic indicator percentiles",
+                    ),
+                    width="stretch",
+                )
+            with socio_right:
+                st.plotly_chart(
+                    energy_relationship_scatter(
+                        profile,
+                        selected_fsa_context,
+                        x_col="owner_pct",
+                        y_col="low_income_pct",
+                        title="Housing tenure and income context",
+                        x_label="Owner share (%)",
+                        y_label="Low-income share (%)",
+                        color_col="apartment_pct",
+                        color_label="Apartment share (%)",
+                        size_col="median_income",
+                        size_label="Median income",
+                    ),
+                    width="stretch",
+                )
 
         st.subheader("Resident-option distributions")
         d1, d2 = st.columns(2)
@@ -849,20 +1029,6 @@ def render_esim_path(
             st.plotly_chart(selected_distribution_bar(population, selected_fsa_context, "household_income", "Household income distribution"), width="stretch")
         with d2:
             st.plotly_chart(selected_distribution_bar(population, selected_fsa_context, "household_type", "Household-structure distribution"), width="stretch")
-
-        if area_profile is not None and {"peak_load", "p90_top10_mean", "mean_load", "am_pm_peak_ratio"}.issubset(dsm_profiles.columns):
-            st.subheader("Daily-profile proxy")
-            st.caption(
-                "A full hourly average daily profile is not included in this demo extract. The short-term load indicators below are shown instead because they are available."
-            )
-            render_field_cards(
-                {
-                    "Peak load": f"{float(area_profile['peak_load']):.2f}",
-                    "Top 10% mean": f"{float(area_profile['p90_top10_mean']):.2f}",
-                    "Mean load": f"{float(area_profile['mean_load']):.2f}",
-                    "Morning/evening ratio": f"{float(area_profile['am_pm_peak_ratio']):.2f}",
-                }
-            )
 
     with tab_programs:
         st.subheader("Program analysis")
@@ -958,6 +1124,7 @@ def render_esim_path(
             "- **Paper workflow**: PRISM-derived heating sensitivity, winter peak/load-shape indicators, DML-informed socio-demographic associations, and program-specific relevance-capacity classes.\n"
             "- **Program pathways**: Tarif Flex D, Hilo, LogisVert, and low-income assistance are evaluated as different demand and capacity mechanisms.\n"
             "- **Interpretation**: high-demand FSAs are not automatically high-flexibility, high-eligibility, high-capacity, or high-vulnerability FSAs.\n"
+            "- **Current demo data boundary**: raw PRISM and short-term aggregate features are now present for the 94 Montreal FSAs in the alignment extract; usable DTW cluster labels, hourly average daily profiles, and full DML feature-importance tables are still not included in this compact deploy artifact.\n"
             "- **Author links**: [Google Scholar](https://scholar.google.com/citations?hl=en&user=7BeRoW4AAAAJ) | [LinkedIn](https://ca.linkedin.com/in/masoodshamsaiee).\n"
             "- **Related paper links**: [BuildSys 2026 program](https://buildsys.acm.org/2026/program/) | [Energy & Buildings article record](https://ui.adsabs.harvard.edu/abs/2026EneBu.35216793S/abstract) | [SSRN preprint](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5381520).\n"
             "- **Contact**: Masood Shamsaiee, Next-Generation Cities Institute, Concordia University."
@@ -1100,7 +1267,7 @@ top = scores.iloc[0]
 
 with st.sidebar:
     with st.expander("Send feedback", expanded=False):
-        st.caption("Saved locally for later demo evaluation.")
+        st.caption("Share what worked, what was confusing, or what should be improved.")
         with st.form("feedback_form", clear_on_submit=True):
             feedback_section = st.selectbox(
                 "What are you reacting to?",
@@ -1146,37 +1313,7 @@ with st.sidebar:
                         "top_alignment_score": f"{float(top['alignment_score']):.4f}",
                     }
                 )
-                st.success("Thanks. Feedback saved locally.")
-    with st.expander("Admin: feedback data", expanded=False):
-        feedback = read_feedback()
-        if feedback.empty:
-            st.caption("No feedback submitted yet.")
-        else:
-            st.metric("Responses", len(feedback))
-            feedback_columns = [
-                "submitted_at_utc",
-                "demo_mode",
-                "section",
-                "clarity_rating",
-                "selected_fsa",
-                "selected_resident_id",
-                "top_program",
-            ]
-            for column in feedback_columns:
-                if column not in feedback.columns:
-                    feedback[column] = ""
-            st.dataframe(
-                feedback[feedback_columns].tail(8),
-                width="stretch",
-                hide_index=True,
-            )
-            st.download_button(
-                "Download feedback CSV",
-                data=feedback.to_csv(index=False).encode("utf-8"),
-                file_name="user_feedback.csv",
-                mime="text/csv",
-                width="stretch",
-            )
+                st.success("Thanks. Feedback submitted.")
 
 if demo_mode == "BuildSys synthetic population":
     render_buildsys_path(population, residents_in_fsa, resident)

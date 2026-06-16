@@ -18,7 +18,17 @@ def test_demo_data_and_scores_load():
     assert len(population) >= 470
     assert population.groupby("fsa_context").size().min() == 5
     assert population["source_synpop_file"].eq("syn_inds_with_hh_montreal_p24_seed42_all.parquet").all()
-    assert len(dsm_profiles) == 10
+    assert len(dsm_profiles) == len(real_alignment)
+    assert set(dsm_profiles["fsa_context"]) == set(real_alignment["fsa"])
+    assert {
+        "heating_slope_per_hdd",
+        "heating_change_point_temp_c",
+        "baseload_intercept",
+        "peak_load",
+        "p90_top10_mean",
+        "am_pm_peak_ratio",
+        "ramp_up_rate",
+    }.issubset(dsm_profiles.columns)
     assert len(real_alignment) >= 90
     assert len(area_locations) == 10
     assert len(fsa_geojson.get("features", [])) >= 90
