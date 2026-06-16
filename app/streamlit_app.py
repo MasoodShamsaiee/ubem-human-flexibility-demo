@@ -15,32 +15,7 @@ if str(ROOT) not in sys.path:
 FEEDBACK_DIR = ROOT / "data" / "feedback"
 FEEDBACK_PATH = FEEDBACK_DIR / "user_feedback.csv"
 ESIM_MATRIX_IMAGE = ROOT / "assets" / "esim_evaluation_matrix.jpg"
-
-DEMO_MODES = {
-    "eSim DSM alignment": "Inspect FSA-level DSM relevance-capacity patterns.",
-    "Integrated demo": "Connect synthetic residents to FSA-level DSM alignment.",
-    "BuildSys synthetic population": "Explore support-aware resident and household attributes.",
-}
-DEMO_PATH_META = {
-    "eSim DSM alignment": {
-        "logo": "eSim",
-        "logo_class": "path-logo-esim",
-        "title": "eSim paper path",
-        "description": "FSA-level DSM alignment, relevance-capacity classes, and program diagnostics.",
-    },
-    "Integrated demo": {
-        "logo": "UBEM",
-        "logo_class": "path-logo-integrated",
-        "title": "Integrated workflow",
-        "description": "Synthetic residents linked to the selected FSA so household heterogeneity can be discussed with DSM context.",
-    },
-    "BuildSys synthetic population": {
-        "logo": "BuildSys",
-        "logo_class": "path-logo-buildsys",
-        "title": "BuildSys path",
-        "description": "Support-aware synthetic population attributes for occupant-sensitive urban energy research.",
-    },
-}
+ESIM_LOGO_IMAGE = ROOT / "assets" / "esim2026_logo.png"
 
 BUILDSYS_ATTRIBUTE_SUPPORT = pd.DataFrame(
     [
@@ -234,7 +209,7 @@ except ImportError:
     comparison_component_dumbbell_chart = None
 
 
-st.set_page_config(page_title="UBEM Human Flexibility Demo", page_icon=":zap:", layout="wide")
+st.set_page_config(page_title="eSim 2026 DSM Alignment Explorer", page_icon=":zap:", layout="wide")
 
 st.markdown(
     """
@@ -422,7 +397,7 @@ FIELD_HELP = {
     "commute_duration": "Commute-duration category. Not applicable may indicate no regular commute or work from home.",
     "inferred_schedule_type": "A simple demo inference from work status, commute mode, and commute duration. It is not a directly observed survey variable.",
     "core_housing_need": "Housing-need indicator carried from the household-side synthetic-population schema.",
-    "Demo area": "Small demo DA-like area assigned to the synthetic resident.",
+    "Demo area": "Small demo area code used in the compact data extract.",
     "Energy/DSM area context": "The FSA-level energy and DSM score row linked to the resident's demo area. This is not an individual attribute.",
     "Winter peak intensity": "Area-level winter peak proxy used to represent demand relevance.",
     "Area tenure mix": "Owner/renter share for the matched area context, not the selected household.",
@@ -526,11 +501,10 @@ def read_feedback() -> pd.DataFrame:
 def render_intro(metadata: dict) -> None:
     st.markdown(
         """
-        This demo connects two research threads into one visitor-facing workflow. First, it maps Montreal Forward
-        Sortation Areas (FSAs) through a demand-side-management alignment framework: PRISM heating sensitivity,
-        short-term winter demand indicators, and socio-demographic capacity proxies are used to diagnose whether
-        each program is structurally well matched to local demand. Second, it links those FSA contexts to synthetic
-        resident options so the audience can see why average-area targeting can hide household-level constraints.
+        This app is a conference-facing explorer for the eSim 2026 demand-side-management alignment workflow.
+        It maps Montreal Forward Sortation Areas (FSAs) using long-term energy signatures, short-term winter
+        load indicators, and socio-demographic capacity proxies, then compares how well each FSA aligns with
+        four DSM program pathways.
         """
     )
     with st.expander("Workflow and matrix summary", expanded=True):
@@ -541,9 +515,9 @@ def render_intro(metadata: dict) -> None:
                 **Workflow**
 
                 1. Select a Montreal FSA from the map.
-                2. Review the selected FSA against PRISM, short-term demand, and socio-demographic indicators.
+                2. Review the selected FSA against PRISM-style, short-term demand, and socio-demographic indicators.
                 3. Inspect program-level DSM alignment, keeping demand-related and capacity-related dimensions separate.
-                4. Use synthetic residents when the demo path needs household-level interpretation.
+                4. Use the matrix and program details to diagnose ideal targets, policy gaps, and lower-priority areas.
                 """
             )
         with right:
@@ -557,35 +531,6 @@ def render_intro(metadata: dict) -> None:
                 """
             )
     st.caption(metadata["disclaimer"])
-
-
-def render_path_selector(current_mode: str) -> str:
-    st.subheader("Demo path")
-    st.caption("Choose the conference-facing path. The map remains the primary FSA selector for all paths.")
-    columns = st.columns(len(DEMO_PATH_META))
-    selected_mode = current_mode
-    for column, (mode, meta) in zip(columns, DEMO_PATH_META.items(), strict=False):
-        with column:
-            selected = mode == current_mode
-            card_class = "path-card path-card-selected" if selected else "path-card"
-            st.markdown(
-                f"""
-                <div class="{card_class}">
-                    <div class="path-logo {meta['logo_class']}">{escape(meta['logo'])}</div>
-                    <div class="path-title">{escape(meta['title'])}</div>
-                    <div class="path-description">{escape(meta['description'])}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            if st.button(
-                "Active" if selected else "Select path",
-                key=f"path_select_{mode}",
-                type="primary" if selected else "secondary",
-                width="stretch",
-            ):
-                selected_mode = mode
-    return selected_mode
 
 
 def selected_fsa_from_plotly_event(event: object, valid_fsas: set[str]) -> str | None:
@@ -657,52 +602,6 @@ def render_resident_option_card(resident_row: pd.Series, selected: bool = False)
         "</div>",
     ]
     st.markdown("".join(lines), unsafe_allow_html=True)
-
-
-def render_buildsys_path(population: pd.DataFrame, residents_in_fsa: pd.DataFrame, resident: pd.Series) -> None:
-    tab_profile, tab_support, tab_population = st.tabs(["Resident Sample", "Attribute Support", "Population Context"])
-    with tab_profile:
-        st.subheader("Support-aware synthetic residents")
-        st.write(
-            "This path mirrors the BuildSys paper: the resident is not a real person, but a census-consistent synthetic household/person record assembled from public-data marginals and microdata support."
-        )
-        left, right = st.columns([1.2, 1])
-        with left:
-            render_field_cards(resident_summary(resident))
-        with right:
-            st.markdown("#### Interpretation boundary")
-            st.info(
-                "Stable household/person attributes can support central interpretation. Mobility and some housing-quality fields are useful exploratory proxies, not direct occupancy schedules or causal explanations."
-            )
-            st.dataframe(
-                residents_in_fsa[["resident_id", "age_group", "household_type", "household_income", "labour_force_status"]],
-                width="stretch",
-                hide_index=True,
-            )
-    with tab_support:
-        st.subheader("Attribute validation framing")
-        st.write(
-            "The BuildSys contribution is not only adding more variables; it is making clear which variables are strongly supported and which should be used cautiously downstream."
-        )
-        st.dataframe(BUILDSYS_ATTRIBUTE_SUPPORT, width="stretch", hide_index=True)
-        stable_share = BUILDSYS_ATTRIBUTE_SUPPORT["Support"].eq("Stable").mean()
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Attributes shown", len(BUILDSYS_ATTRIBUTE_SUPPORT))
-        c2.metric("Stable share", f"{stable_share:.0%}")
-        c3.metric("Lowest TVD", f"{BUILDSYS_ATTRIBUTE_SUPPORT['TVD'].min():.4f}")
-        st.caption("TVD values are paper-reported Plateau-Mont-Royal validation results; the demo resident sample uses the latest Montreal synthetic-population artifact.")
-    with tab_population:
-        st.subheader("Why heterogeneity matters for UBEM")
-        a, b = st.columns(2)
-        with a:
-            st.plotly_chart(distribution_bar(population, "household_type", "Household structure"), width="stretch")
-        with b:
-            st.plotly_chart(distribution_bar(population, "household_income", "Household income group"), width="stretch")
-        c, d = st.columns(2)
-        with c:
-            st.plotly_chart(distribution_bar(population, "labour_force_status", "Work status"), width="stretch")
-        with d:
-            st.plotly_chart(distribution_bar(population, "inferred_schedule_type", "Inferred schedule proxy"), width="stretch")
 
 
 def esim_class_label(raw_class: str) -> str:
@@ -1126,7 +1025,7 @@ def render_esim_path(
             "- **Interpretation**: high-demand FSAs are not automatically high-flexibility, high-eligibility, high-capacity, or high-vulnerability FSAs.\n"
             "- **Current demo data boundary**: raw PRISM and short-term aggregate features are now present for the 94 Montreal FSAs in the alignment extract; usable DTW cluster labels, hourly average daily profiles, and full DML feature-importance tables are still not included in this compact deploy artifact.\n"
             "- **Author links**: [Google Scholar](https://scholar.google.com/citations?hl=en&user=7BeRoW4AAAAJ) | [LinkedIn](https://ca.linkedin.com/in/masoodshamsaiee).\n"
-            "- **Related paper links**: [BuildSys 2026 program](https://buildsys.acm.org/2026/program/) | [Energy & Buildings article record](https://ui.adsabs.harvard.edu/abs/2026EneBu.35216793S/abstract) | [SSRN preprint](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5381520).\n"
+            "- **Related paper links**: [Energy & Buildings article record](https://ui.adsabs.harvard.edu/abs/2026EneBu.35216793S/abstract) | [SSRN preprint](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5381520).\n"
             "- **Contact**: Masood Shamsaiee, Next-Generation Cities Institute, Concordia University."
         )
         st.subheader("Program-specific assumptions used in the paper")
@@ -1159,14 +1058,15 @@ population, dsm_profiles, real_alignment, area_locations, fsa_geojson, metadata 
 area_scores = compute_report_alignment(dsm_profiles, real_alignment)
 all_fsa_scores = all_fsa_report_alignment(real_alignment)
 
-st.title("UBEM Human Flexibility Demo")
+logo_col, title_col = st.columns([0.18, 0.82], vertical_alignment="center")
+with logo_col:
+    if ESIM_LOGO_IMAGE.exists():
+        st.image(str(ESIM_LOGO_IMAGE), width=180)
+with title_col:
+    st.title("DSM Alignment Explorer")
+    st.caption("eSim 2026 | FSA-level demand-side-management relevance and capacity analysis")
 render_intro(metadata)
-if "demo_mode" not in st.session_state:
-    st.session_state.demo_mode = "eSim DSM alignment"
-demo_mode = render_path_selector(st.session_state.demo_mode)
-if demo_mode != st.session_state.demo_mode:
-    st.session_state.demo_mode = demo_mode
-    st.rerun()
+demo_mode = "eSim DSM alignment"
 
 fsa_options = real_alignment["fsa"].sort_values().tolist()
 valid_fsas = set(fsa_options)
@@ -1201,37 +1101,13 @@ selection_a, selection_b = st.columns(2)
 with selection_a:
     st.metric("Selected FSA", st.session_state.selected_fsa_context)
 with selection_b:
-    if demo_mode == "eSim DSM alignment":
-        selected_demand = all_fsa_scores.loc[all_fsa_scores["fsa_context"] == st.session_state.selected_fsa_context, "demand_relevance"]
-        st.metric("Demand relevance", f"{selected_demand.iloc[0]:.2f}" if not selected_demand.empty else "n/a")
-    else:
-        st.metric("Resident", st.session_state.selected_resident_id)
-
-if demo_mode != "eSim DSM alignment":
-    st.subheader("2. Choose a resident card")
-    resident_cards = population.loc[population["fsa_context"] == st.session_state.selected_fsa_context].reset_index(drop=True)
-    card_columns = st.columns(len(resident_cards))
-    for card_index, (_, option) in enumerate(resident_cards.iterrows()):
-        with card_columns[card_index]:
-            is_selected = option["resident_id"] == st.session_state.selected_resident_id
-            render_resident_option_card(option, selected=is_selected)
-            if st.button(
-                "Selected" if is_selected else "Select",
-                key=f"select_resident_{option['resident_id']}",
-                type="primary" if is_selected else "secondary",
-                width="stretch",
-            ):
-                st.session_state.selected_resident_id = option["resident_id"]
-                st.rerun()
+    selected_demand = all_fsa_scores.loc[all_fsa_scores["fsa_context"] == st.session_state.selected_fsa_context, "demand_relevance"]
+    st.metric("Demand relevance", f"{selected_demand.iloc[0]:.2f}" if not selected_demand.empty else "n/a")
 
 with st.sidebar:
     st.header("Current selection")
     st.metric("FSA", st.session_state.selected_fsa_context)
-    if demo_mode != "eSim DSM alignment":
-        st.caption(f"Resident: {st.session_state.selected_resident_id}")
-        st.caption("Use the map and resident cards as the primary selector.")
-    else:
-        st.caption("Use the map as the primary selector.")
+    st.caption("Use the map as the primary selector. The manual dropdown is a fallback for touch screens or inaccessible map interactions.")
     with st.expander("Manual selection fallback", expanded=False):
         manual_fsa = st.selectbox(
             "Montreal FSA",
@@ -1264,6 +1140,9 @@ selected_breakdown = pd.concat(
     ignore_index=True,
 )
 top = scores.iloc[0]
+selected_fsa_scores = all_fsa_scores.loc[all_fsa_scores["fsa_context"].eq(selected_fsa_context)]
+if not selected_fsa_scores.empty:
+    top = esim_program_score_rows(selected_fsa_scores.iloc[0]).iloc[0]
 
 with st.sidebar:
     with st.expander("Send feedback", expanded=False):
@@ -1273,13 +1152,11 @@ with st.sidebar:
                 "What are you reacting to?",
                 [
                     "Overall demo",
-                    "BuildSys synthetic population path",
-                    "eSim DSM alignment path",
-                    "Integrated demo path",
                     "Map/FSA selection",
-                    "Resident profile",
-                    "DSM suitability",
-                    "Resident comparison",
+                    "FSA energy features",
+                    "Socio-demographic context",
+                    "Program analysis",
+                    "Relevance-capacity matrix",
                     "Scientific interpretation",
                 ],
             )
@@ -1307,286 +1184,10 @@ with st.sidebar:
                         "comment": feedback_comment.strip(),
                         "role_or_affiliation": feedback_role.strip(),
                         "selected_fsa": str(selected_fsa_context),
-                        "selected_resident_id": str(resident["resident_id"]),
-                        "source_da": str(resident["source_da"]),
                         "top_program": str(top["program"]),
                         "top_alignment_score": f"{float(top['alignment_score']):.4f}",
                     }
                 )
                 st.success("Thanks. Feedback submitted.")
 
-if demo_mode == "BuildSys synthetic population":
-    render_buildsys_path(population, residents_in_fsa, resident)
-elif demo_mode == "eSim DSM alignment":
-    render_esim_path(selected_fsa_context, real_alignment, all_fsa_scores, population, valid_fsas)
-else:
-    tab_resident, tab_dsm, tab_compare, tab_why = st.tabs(
-        ["Resident Profile", "DSM Fit", "Compare People", "Population Context"]
-    )
-
-    with tab_resident:
-        st.subheader("Meet a synthetic resident")
-        left, right = st.columns([1.2, 1])
-        with left:
-            summary = resident_summary(resident)
-            individual_fields = {
-                key: value
-                for key, value in summary.items()
-                if key
-                not in {
-                    "area",
-                }
-            }
-            render_field_cards(individual_fields)
-            with st.expander("Data provenance", expanded=False):
-                provenance_fields = {
-                    "resident_id": resident["resident_id"],
-                    "person_uid": resident["person_uid"],
-                    "HID": resident["HID"],
-                    "source_da": resident["source_da"],
-                    "fsa_context": resident["fsa_context"],
-                    "source_synpop_file": resident["source_synpop_file"],
-                    "code_agegrp": resident["code_agegrp"],
-                    "code_lfact": resident["code_lfact"],
-                    "code_totinc": resident["code_totinc"],
-                    "code_hhtype": resident["code_hhtype"],
-                }
-                render_field_cards(provenance_fields)
-        with right:
-            st.subheader("Matched FSA Energy Baseline")
-            context_fields = {
-                "Energy/DSM area context": selected_fsa_context,
-            }
-            render_field_cards(context_fields)
-            st.caption(
-                f"Workflow: selected FSA {selected_fsa_context} -> five residents sampled from latest synthetic-pop DAs mapped to that FSA -> selected resident {resident['resident_id']}."
-            )
-
-    with tab_dsm:
-        st.subheader("DSM suitability is not one-size-fits-all")
-        st.write(
-            "Scores below are illustrative alignments. The DSM source repo evaluates spatial units using rank-based proxies; this demo combines the selected resident's matched area context with a small household-context resemblance modifier."
-        )
-        c1, c2, c3 = st.columns([0.9, 1.25, 1])
-        with c1:
-            st.metric("Best-fit illustrative strategy", top["program"])
-            st.metric("Suitability band", score_label(float(top["alignment_score"])))
-            st.metric("Alignment score", f"{top['alignment_score']:.2f}")
-            st.caption(f"Area baseline: {top['source']} | FSA context: {top['fsa_context']}")
-        with c2:
-            if alignment_breakdown_bar is None:
-                st.plotly_chart(alignment_bar(scores), width="stretch")
-            else:
-                st.plotly_chart(alignment_breakdown_bar(selected_breakdown), width="stretch")
-        with c3:
-            st.plotly_chart(radar_chart(scores), width="stretch")
-
-        st.divider()
-        st.subheader("Why this profile aligns")
-        for _, row in scores.iterrows():
-            with st.expander(f"{row['program']} | {score_label(float(row['alignment_score']))} suitability"):
-                st.write(row["description"])
-                st.write(explanations[row["program"]])
-                breakdown = program_breakdown(
-                    row["program"],
-                    resident,
-                    dsm_profiles,
-                    real_alignment,
-                    fsa_context=selected_fsa_context,
-                )
-                if stacked_breakdown_bar is None:
-                    st.bar_chart(
-                        breakdown.set_index("component")[["contribution"]],
-                        horizontal=True,
-                        height=190,
-                    )
-                else:
-                    st.plotly_chart(stacked_breakdown_bar(breakdown, row["program"]), width="stretch")
-                for _, component in breakdown.iterrows():
-                    st.markdown(
-                        f"**{component['component']}**: {component['description']} "
-                        f"Source subindex `{component['source_value']:.2f}` x weight `{component['weight']:.3f}` "
-                        f"= contribution `{component['contribution']:.3f}`."
-                    )
-                st.progress(float(row["alignment_score"]))
-                st.caption(
-                    f"Area context: {row['area_context_score']:.2f}; household context: {row['household_context_score']:.2f}."
-                )
-
-    with tab_compare:
-        st.subheader("Compare two synthetic residents")
-        st.write(
-            "Use this view to show why similar average demand contexts can still imply different DSM pathways once household heterogeneity is visible."
-        )
-        valid_compare_ids = residents_in_fsa["resident_id"].tolist()
-        if st.session_state.get("compare_fsa_context") != selected_fsa_context:
-            st.session_state.compare_fsa_context = selected_fsa_context
-            st.session_state.compare_a_id = valid_compare_ids[0]
-            st.session_state.compare_b_id = valid_compare_ids[1] if len(valid_compare_ids) > 1 else valid_compare_ids[0]
-        if st.session_state.get("compare_a_id") not in valid_compare_ids:
-            st.session_state.compare_a_id = valid_compare_ids[0]
-        if st.session_state.get("compare_b_id") not in valid_compare_ids:
-            st.session_state.compare_b_id = valid_compare_ids[1] if len(valid_compare_ids) > 1 else valid_compare_ids[0]
-
-        st.caption("Assign two cards as Resident A and Resident B.")
-        compare_columns = st.columns(len(residents_in_fsa))
-        for card_index, (_, option) in enumerate(residents_in_fsa.iterrows()):
-            with compare_columns[card_index]:
-                assigned = option["resident_id"] in {st.session_state.compare_a_id, st.session_state.compare_b_id}
-                render_resident_option_card(option, selected=assigned)
-                a_type = "primary" if option["resident_id"] == st.session_state.compare_a_id else "secondary"
-                b_type = "primary" if option["resident_id"] == st.session_state.compare_b_id else "secondary"
-                if st.button("Set A", key=f"compare_set_a_{option['resident_id']}", type=a_type, width="stretch"):
-                    st.session_state.compare_a_id = option["resident_id"]
-                    st.rerun()
-                if st.button("Set B", key=f"compare_set_b_{option['resident_id']}", type=b_type, width="stretch"):
-                    st.session_state.compare_b_id = option["resident_id"]
-                    st.rerun()
-
-        resident_a = residents_in_fsa.loc[residents_in_fsa["resident_id"] == st.session_state.compare_a_id].iloc[0]
-        resident_b = residents_in_fsa.loc[residents_in_fsa["resident_id"] == st.session_state.compare_b_id].iloc[0]
-        fsa_a = resident_a["fsa_context"]
-        fsa_b = resident_b["fsa_context"]
-        scores_a, _ = score_resident(resident_a, dsm_profiles, real_alignment, fsa_context=fsa_a)
-        scores_b, _ = score_resident(resident_b, dsm_profiles, real_alignment, fsa_context=fsa_b)
-
-        profile_a, profile_b = st.columns(2)
-        with profile_a:
-            st.markdown("#### Resident A")
-            render_field_cards(
-                {
-                    "Age group": resident_a["age_group"],
-                    "Household type": resident_a["household_type"],
-                    "Household size": resident_a["household_size"],
-                    "Labour status": resident_a["labour_force_status"],
-                    "Income group": resident_a["household_income"],
-                    "Education": resident_a["education_level"],
-                    "Schedule type": resident_a["inferred_schedule_type"],
-                    "DSM area context": f"DA {resident_a['source_da']} -> {resident_a['fsa_context']}",
-                }
-            )
-        with profile_b:
-            st.markdown("#### Resident B")
-            render_field_cards(
-                {
-                    "Age group": resident_b["age_group"],
-                    "Household type": resident_b["household_type"],
-                    "Household size": resident_b["household_size"],
-                    "Labour status": resident_b["labour_force_status"],
-                    "Income group": resident_b["household_income"],
-                    "Education": resident_b["education_level"],
-                    "Schedule type": resident_b["inferred_schedule_type"],
-                    "DSM area context": f"DA {resident_b['source_da']} -> {resident_b['fsa_context']}",
-                }
-            )
-
-        compare_scores = pd.concat(
-            [
-                scores_a.assign(resident_label="Resident A"),
-                scores_b.assign(resident_label="Resident B"),
-            ],
-            ignore_index=True,
-        )
-        comparison_score_breakdown = pd.concat(
-            [
-                program_breakdown(program, resident_a, dsm_profiles, real_alignment, fsa_context=fsa_a).assign(program=program, resident_label="Resident A")
-                for program in scores_a["program"]
-            ]
-            + [
-                program_breakdown(program, resident_b, dsm_profiles, real_alignment, fsa_context=fsa_b).assign(program=program, resident_label="Resident B")
-                for program in scores_b["program"]
-            ],
-            ignore_index=True,
-        )
-        comparison_view = st.radio(
-            "Comparison visual",
-            ["Paired dots", "Grouped bars", "Radar"],
-            horizontal=True,
-            help="Paired dots keep absolute scores on the same scale and use a connector to make small gaps visible.",
-        )
-        if comparison_view == "Paired dots" and comparison_dumbbell_chart is not None:
-            st.plotly_chart(comparison_dumbbell_chart(compare_scores), width="stretch")
-        elif comparison_view == "Grouped bars" and comparison_alignment_breakdown_bar is not None:
-            st.plotly_chart(comparison_alignment_breakdown_bar(comparison_score_breakdown), width="stretch")
-        elif comparison_radar_chart is None:
-            if comparison_alignment_breakdown_bar is None:
-                st.plotly_chart(comparison_bar(compare_scores), width="stretch")
-            else:
-                st.plotly_chart(comparison_alignment_breakdown_bar(comparison_score_breakdown), width="stretch")
-        else:
-            st.plotly_chart(comparison_radar_chart(compare_scores), width="stretch")
-
-        st.subheader("Why the residents differ")
-        for program in compare_scores["program"].drop_duplicates():
-            compare_breakdown = comparison_score_breakdown.loc[
-                comparison_score_breakdown["program"].eq(program)
-            ].reset_index(drop=True)
-            component_gap = (
-                compare_breakdown.pivot(index="component", columns="resident_label", values="contribution")
-                .fillna(0)
-                .assign(absolute_gap=lambda df: (df["Resident A"] - df["Resident B"]).abs())
-                .sort_values("absolute_gap", ascending=False)
-            )
-            gap_component = component_gap.index[0]
-            with st.expander(f"{program} component breakdown"):
-                if comparison_view == "Paired dots" and comparison_component_dumbbell_chart is not None:
-                    st.plotly_chart(comparison_component_dumbbell_chart(compare_breakdown, program), width="stretch")
-                elif comparison_view == "Grouped bars" and comparison_breakdown_bar is not None:
-                    st.plotly_chart(comparison_breakdown_bar(compare_breakdown, program), width="stretch")
-                elif comparison_component_radar_chart is None:
-                    st.bar_chart(
-                        compare_breakdown.pivot(index="component", columns="resident_label", values="contribution").fillna(0),
-                        horizontal=True,
-                        height=260,
-                    )
-                else:
-                    st.plotly_chart(comparison_component_radar_chart(compare_breakdown, program), width="stretch")
-                st.caption(
-                    f"Largest component gap: {gap_component}. "
-                    f"Resident A contribution {component_gap.loc[gap_component, 'Resident A']:.3f}; "
-                    f"Resident B contribution {component_gap.loc[gap_component, 'Resident B']:.3f}."
-                )
-                for component_name, component_row in compare_breakdown.drop_duplicates("component").set_index("component").iterrows():
-                    st.markdown(f"**{component_name}**: {component_row['description']}")
-
-        score_wide = compare_scores.pivot(index="program", columns="resident_label", values="alignment_score")
-        score_wide["absolute_gap"] = (score_wide["Resident A"] - score_wide["Resident B"]).abs()
-        biggest_gap = score_wide.sort_values("absolute_gap", ascending=False).iloc[0]
-        biggest_program = score_wide.sort_values("absolute_gap", ascending=False).index[0]
-        st.info(
-            f"Largest difference: {biggest_program}. Resident A scores {biggest_gap['Resident A']:.2f}; "
-            f"Resident B scores {biggest_gap['Resident B']:.2f}."
-        )
-
-    with tab_why:
-        st.subheader("Average households hide flexibility-relevant diversity")
-        st.write(
-            "The synthetic-population workflow keeps residents heterogeneous across age group, household structure, work status, income group, and source DA. This matters because DSM proxies do not move together for every household."
-        )
-        a, b = st.columns(2)
-        with a:
-            st.plotly_chart(distribution_bar(population, "labour_force_status", "Work status in sampled resident options"), width="stretch")
-        with b:
-            st.plotly_chart(distribution_bar(population, "household_type", "Household structure in sampled resident options"), width="stretch")
-
-        c, d = st.columns(2)
-        with c:
-            st.plotly_chart(distribution_bar(population, "household_income", "Household income group"), width="stretch")
-        with d:
-            st.plotly_chart(distribution_bar(population, "inferred_schedule_type", "Inferred schedule type"), width="stretch")
-
-        st.plotly_chart(average_vs_heterogeneous(population, area_scores), width="stretch")
-        st.plotly_chart(
-            fsa_context_map(
-                dsm_profiles,
-                all_fsa_scores,
-                fsa_geojson,
-                area_locations,
-                title="FSA contexts used by the demo residents",
-            ),
-            width="stretch",
-        )
-        st.caption(
-            "Black diamonds mark the average area score. The spread shows how a single average can miss renter-heavy, repair-sensitive, owner-occupied, family, older-adult, and long-commute contexts."
-        )
-
+render_esim_path(selected_fsa_context, real_alignment, all_fsa_scores, population, valid_fsas)
