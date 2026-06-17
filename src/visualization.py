@@ -1053,7 +1053,7 @@ def fsa_context_map(
                 locations=[selected_fsa],
                 z=[1],
                 featureidkey="properties.CFSAUID",
-                colorscale=[[0, "rgba(255,127,14,0.03)"], [1, "rgba(255,127,14,0.03)"]],
+                colorscale=[[0, "rgba(255,127,14,0.00)"], [1, "rgba(255,127,14,0.00)"]],
                 showscale=False,
                 marker_line_color=SELECTED_COLOR,
                 marker_line_width=3,
