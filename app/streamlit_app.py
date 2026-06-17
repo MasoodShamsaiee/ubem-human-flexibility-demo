@@ -1140,7 +1140,7 @@ demo_mode = "eSim DSM alignment"
 fsa_options = real_alignment["fsa"].sort_values().tolist()
 valid_fsas = set(fsa_options)
 if "selected_fsa_context" not in st.session_state:
-    st.session_state.selected_fsa_context = fsa_options[0]
+    st.session_state.selected_fsa_context = "H2J" if "H2J" in valid_fsas else fsa_options[0]
 if "selected_resident_id" not in st.session_state:
     first_resident = population.loc[population["fsa_context"] == st.session_state.selected_fsa_context].iloc[0]
     st.session_state.selected_resident_id = first_resident["resident_id"]

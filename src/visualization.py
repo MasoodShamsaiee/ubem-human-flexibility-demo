@@ -1012,10 +1012,10 @@ def fsa_context_map(
             locations=all_fsas["fsa"],
             z=[1] * len(all_fsas),
             featureidkey="properties.CFSAUID",
-            colorscale=[[0, "#CBD4D0"], [1, "#CBD4D0"]],
+            colorscale=[[0, "rgba(203,212,208,0.28)"], [1, "rgba(203,212,208,0.28)"]],
             showscale=False,
             marker_line_color="#7F8D89",
-            marker_line_width=0.8,
+            marker_line_width=0.6,
             hovertemplate="<b>FSA %{location}</b><br>No demo DSM score shown<extra></extra>",
         )
     )
@@ -1025,9 +1025,13 @@ def fsa_context_map(
             locations=df["fsa_context"],
             z=df["demand_relevance"],
             featureidkey="properties.CFSAUID",
-            colorscale=[[0, "#E7EDE9"], [0.5, "#8FAEA7"], [1, "#2F6B63"]],
+            colorscale=[
+                [0, "rgba(231,237,233,0.50)"],
+                [0.5, "rgba(143,174,167,0.54)"],
+                [1, "rgba(47,107,99,0.58)"],
+            ],
             marker_line_color="#FFFFFF",
-            marker_line_width=1.2,
+            marker_line_width=0.8,
             colorbar=dict(title="Demand<br>relevance", thickness=12),
             customdata=df[["area", "area_label", "Flex D", "Hilo", "LogisVert", "Low-income assistance"]],
             hovertemplate=(
@@ -1049,10 +1053,10 @@ def fsa_context_map(
                 locations=[selected_fsa],
                 z=[1],
                 featureidkey="properties.CFSAUID",
-                colorscale=[[0, "rgba(184,92,92,0.25)"], [1, "rgba(184,92,92,0.25)"]],
+                colorscale=[[0, "rgba(255,127,14,0.16)"], [1, "rgba(255,127,14,0.16)"]],
                 showscale=False,
-                marker_line_color="#681F1F",
-                marker_line_width=4,
+                marker_line_color=SELECTED_COLOR,
+                marker_line_width=3,
                 hovertemplate=f"<b>Selected context</b><br>FSA {selected_fsa}<extra></extra>",
             )
         )
@@ -1070,7 +1074,7 @@ def fsa_context_map(
                 marker=dict(
                     size=fsa_points["is_selected"].map({True: 18, False: 13}),
                     color=fsa_points["is_selected"].map({True: SELECTED_COLOR, False: "#263332"}),
-                    opacity=fsa_points["is_selected"].map({True: 0.98, False: 0.74}),
+                    opacity=fsa_points["is_selected"].map({True: 0.92, False: 0.45}),
                 ),
                 hovertemplate="<b>FSA %{text}</b><br>Click to choose residents<extra></extra>",
                 name="Selectable FSA",
