@@ -17,6 +17,7 @@ FEEDBACK_PATH = FEEDBACK_DIR / "user_feedback.csv"
 ESIM_MATRIX_IMAGE = ROOT / "assets" / "esim_evaluation_matrix.jpg"
 ESIM_LOGO_IMAGE = ROOT / "assets" / "esim2026_logo.png"
 PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
+MAP_PLOTLY_CONFIG = {"displayModeBar": True, "scrollZoom": True, "responsive": True}
 
 BUILDSYS_ATTRIBUTE_SUPPORT = pd.DataFrame(
     [
@@ -1146,7 +1147,7 @@ if "selected_resident_id" not in st.session_state:
     st.session_state.selected_resident_id = first_resident["resident_id"]
 
 st.subheader("1. Choose a Montreal FSA from the map")
-st.caption("Click a dot to update the active FSA analysis context.")
+st.caption("Click a dot to update the active FSA analysis context. Use pinch/scroll to zoom and drag to pan.")
 map_event = st.plotly_chart(
     fsa_context_map(
         dsm_profiles,
@@ -1157,7 +1158,7 @@ map_event = st.plotly_chart(
         title="Primary FSA selector",
     ),
     width="stretch",
-    config=PLOTLY_CONFIG,
+    config=MAP_PLOTLY_CONFIG,
     key="primary_fsa_map",
     on_select="rerun",
     selection_mode=["points"],
