@@ -1,6 +1,10 @@
-# eSim 2026 DSM Alignment Explorer
+# DSM Alignment Explorer v2
 
-A Streamlit conference demo for the eSim 2026 demand-side-management alignment workflow. The app lets visitors select a Montreal Forward Sortation Area (FSA) from a map and inspect how that FSA aligns with four program pathways:
+A Streamlit research communication demo developed for eSim 2026. Version 2 combines the Montreal FSA demand-side-management alignment workflow with a synthetic-population exploration layer.
+
+The eSim-only conference release is preserved by the Git tag `v1-demo`.
+
+The app lets visitors select a Montreal Forward Sortation Area (FSA) from a map and inspect how that FSA aligns with four program pathways:
 
 - Tarif Flex D
 - Hilo
@@ -15,7 +19,7 @@ The demo is intentionally spatial and program-oriented. It illustrates FSA-level
 2. Review long-term energy features, short-term winter load features, and socio-demographic context for the selected FSA.
 3. Compare program scores while keeping demand-related and capacity-related dimensions separate.
 4. Use the relevance-capacity matrix to explore ideal targets, policy gaps, low-priority areas, and minimal-impact areas.
-5. Open the info tab for interpretation boundaries, references, and author links.
+5. Explore synthetic person and household patterns, then open the info tab for interpretation boundaries and author links.
 
 ## Demo Data
 
@@ -29,7 +33,17 @@ The demo is intentionally spatial and program-oriented. It illustrates FSA-level
 
 `data/demo_montreal_fsa_context.geojson` contains the lightweight Montreal FSA boundary file used for the map.
 
-All values are research-demo data and should be interpreted as communication/diagnostic outputs, not final planning recommendations.
+The synthetic-population extension includes a validated 30-DA H2J bundle with 16,278 synthetic people linked to 8,685 synthetic households. Other FSAs retain five compact profiles sampled from the Montreal-wide synthetic population artifact. Synthetic records represent plausible combinations constrained by public-data distributions; they are not identifiable residents.
+
+The H2J bundle is packaged in compact CSV artifacts:
+
+- `data/synpop_h2j_people_households.csv.gz`
+- `data/synpop_validation_summary.csv`
+- `data/synpop_support_summary.csv`
+- `data/synpop_population_totals_audit.csv`
+- `data/synpop_bundle_metadata.json`
+
+All outputs are research-demo data and should be interpreted as communication and diagnostic results, not final planning recommendations or household-level predictions.
 
 ## Feedback Collection
 
@@ -73,16 +87,10 @@ Streamlit Community Cloud:
 4. Add Google Sheets credentials in **Settings > Secrets** if feedback should be written to Google Sheets.
 5. Reboot the app after saving secrets.
 
-The app currently redirects from:
+The public address is:
 
 ```text
 https://demo.pishi.fyi
 ```
 
-to a Google Analytics tracking page, which then forwards to the Streamlit deployment. In Cloudflare, point the redirect rule to:
-
-```text
-https://masoodshamsaiee.github.io/ubem-human-flexibility-demo/demo/
-```
-
-The tracking page sends a GA4 `qr_scan` event with label `qr_esim_demo`, then redirects to the Streamlit app.
+It is served by a Cloudflare Worker that records the configured GA4 access event and redirects directly to the Streamlit deployment. The older GitHub Pages tracking hop is no longer required.

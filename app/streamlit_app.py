@@ -162,6 +162,22 @@ ESIM_COMPONENT_DESCRIPTIONS = {
 
 from src.dsm_scoring import all_fsa_report_alignment, compute_report_alignment, program_breakdown, score_resident
 from src.synthetic_population import resident_summary
+from src.synpop_demo import (
+    HOUSEHOLD_ATTRIBUTES,
+    PERSON_ATTRIBUTES,
+    display_label as synpop_display_label,
+    distribution_figure as synpop_distribution_figure,
+    household_overlay_figure,
+    inferred_schedule,
+    profile_fields as synpop_profile_fields,
+    read_bundle_metadata,
+    read_h2j_population,
+    read_population_totals,
+    read_support_summary,
+    read_validation_summary,
+    resident_option_label,
+    validation_fit_figure,
+)
 from src.utils import load_metadata, read_area_locations, read_dsm_profiles, read_fsa_geojson, read_fsa_resident_options, read_real_dsm_alignment, score_label
 from src.visualization import (
     alignment_bar,
@@ -215,7 +231,7 @@ except ImportError:
     comparison_component_dumbbell_chart = None
 
 
-st.set_page_config(page_title="eSim 2026 DSM Alignment Explorer", page_icon=":zap:", layout="wide")
+st.set_page_config(page_title="DSM Alignment Explorer v2", page_icon=":zap:", layout="wide")
 
 st.markdown(
     """
@@ -634,27 +650,6 @@ def selected_fsa_from_plotly_event(event: object, valid_fsas: set[str]) -> str |
     return None
 
 
-def request_fsa_change(fsa: str) -> None:
-    st.session_state.pending_fsa_context = fsa
-
-
-def render_pending_fsa_change(population: pd.DataFrame) -> None:
-    pending_fsa = st.session_state.get("pending_fsa_context")
-    if not pending_fsa or pending_fsa == st.session_state.selected_fsa_context:
-        return
-    st.warning(f"Change selected FSA from {st.session_state.selected_fsa_context} to {pending_fsa}?")
-    yes, no = st.columns([0.18, 0.82])
-    with yes:
-        if st.button("Yes, update", type="primary", key="confirm_fsa_change"):
-            set_selected_fsa(pending_fsa, population)
-            st.session_state.pending_fsa_context = None
-            st.rerun()
-    with no:
-        if st.button("Cancel", key="cancel_fsa_change"):
-            st.session_state.pending_fsa_context = None
-            st.rerun()
-
-
 def set_selected_fsa(fsa: str, population: pd.DataFrame) -> None:
     st.session_state.selected_fsa_context = fsa
     residents = population.loc[population["fsa_context"] == fsa]
@@ -782,26 +777,6 @@ def selected_area_profile(dsm_profiles: pd.DataFrame, selected_fsa_context: str)
     return matches.iloc[0]
 
 
-def energy_feature_cards(area_profile: pd.Series) -> dict[str, str]:
-    fields = {
-        "Winter peak share": f"{float(area_profile['winter_peak_share']):.3f}",
-        "Heating slope per HDD": f"{float(area_profile['heating_slope_per_hdd']):.2f}",
-        "Heating change point": f"{float(area_profile['heating_change_point_temp_c']):.1f} C",
-        "Baseload intercept": f"{float(area_profile['baseload_intercept']):.2f}",
-        "Cooling slope per CDD": f"{float(area_profile['cooling_slope_per_cdd']):.3f}",
-        "Winter peak intensity": f"{float(area_profile['winter_peak_intensity']):.2f}",
-        "Daily peak load": f"{float(area_profile['peak_load']):.2f}",
-        "Top 10% load mean": f"{float(area_profile['p90_top10_mean']):.2f}",
-        "Mean load": f"{float(area_profile['mean_load']):.2f}",
-        "Morning/evening peak ratio": f"{float(area_profile['am_pm_peak_ratio']):.2f}",
-        "Ramp-up rate": f"{float(area_profile['ramp_up_rate']):.3f}",
-    }
-    cluster = area_profile.get("dtw_cluster_label")
-    if pd.notna(cluster):
-        fields["DTW cluster label"] = str(cluster)
-    return fields
-
-
 def energy_feature_summary_table(area_profile: pd.Series) -> pd.DataFrame:
     rows = [
         ("Long-term", "Winter peak share", f"{float(area_profile['winter_peak_share']):.3f}"),
@@ -819,9 +794,206 @@ def energy_feature_summary_table(area_profile: pd.Series) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["Feature group", "Feature", "Selected FSA value"])
 
 
-def available_energy_fsa_text(dsm_profiles: pd.DataFrame) -> str:
-    fsas = dsm_profiles["fsa_context"].dropna().drop_duplicates().sort_values().tolist()
-    return ", ".join(fsas)
+@st.cache_data
+def load_synpop_demo_data():
+    return (
+        read_h2j_population(),
+        read_validation_summary(),
+        read_support_summary(),
+        read_population_totals(),
+        read_bundle_metadata(),
+    )
+
+
+def render_household_lens(
+    resident_row: pd.Series,
+    *,
+    selected_fsa_context: str,
+    dsm_profiles: pd.DataFrame,
+    real_alignment: pd.DataFrame,
+) -> None:
+    resident = resident_row.copy()
+    schedule_value = resident.get("inferred_schedule_type")
+    if pd.isna(schedule_value) or not str(schedule_value).strip():
+        schedule_value = inferred_schedule(resident)
+    resident["inferred_schedule_type"] = schedule_value
+    scores, _ = score_resident(
+        resident,
+        dsm_profiles,
+        real_alignment,
+        fsa_context=selected_fsa_context,
+    )
+    st.markdown("#### Illustrative household lens")
+    st.caption(
+        "This overlay keeps the FSA baseline visible and adds a small household-context modifier. "
+        "It is a communication aid, not an enrolment, eligibility, or impact prediction."
+    )
+    st.plotly_chart(household_overlay_figure(scores), width="stretch", config=PLOTLY_CONFIG)
+    score_table = scores[
+        ["program", "area_context_score", "household_context_score", "alignment_score"]
+    ].copy()
+    score_table.columns = ["Program", "FSA baseline", "Household context", "Illustrative overlay"]
+    st.dataframe(score_table, width="stretch", hide_index=True)
+
+
+def render_synpop_path(
+    selected_fsa_context: str,
+    population: pd.DataFrame,
+    dsm_profiles: pd.DataFrame,
+    real_alignment: pd.DataFrame,
+) -> None:
+    h2j_population, validation, support, totals, bundle_metadata = load_synpop_demo_data()
+    st.subheader("Synthetic population")
+    st.write(
+        "This section adds household and person heterogeneity to the FSA-level DSM workflow. "
+        "The records are synthetic and represent plausible combinations constrained by public-data distributions; "
+        "they are not identifiable residents."
+    )
+
+    if selected_fsa_context != "H2J":
+        st.info(
+            "The complete validated bundle currently covers 30 dissemination areas in H2J. "
+            f"For FSA {selected_fsa_context}, the app shows five core profiles sampled from the Montreal-wide "
+            "synthetic population artifact."
+        )
+        profiles = population.loc[population["fsa_context"].eq(selected_fsa_context)].reset_index(drop=True)
+        if profiles.empty:
+            st.warning("No synthetic profiles are available for this FSA.")
+            return
+        selected_id = st.selectbox(
+            "Synthetic profile",
+            profiles["resident_id"].tolist(),
+            format_func=lambda value: resident_option_label(
+                profiles.loc[profiles["resident_id"].eq(value)].iloc[0]
+            ),
+            key=f"synpop_profile_{selected_fsa_context}",
+        )
+        selected = profiles.loc[profiles["resident_id"].eq(selected_id)].iloc[0]
+        render_field_cards(synpop_profile_fields(selected, PERSON_ATTRIBUTES + HOUSEHOLD_ATTRIBUTES))
+        render_household_lens(
+            selected,
+            selected_fsa_context=selected_fsa_context,
+            dsm_profiles=dsm_profiles,
+            real_alignment=real_alignment,
+        )
+        return
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Synthetic people", f"{bundle_metadata['n_people']:,}")
+    m2.metric("Synthetic households", f"{bundle_metadata['n_households']:,}")
+    m3.metric("Dissemination areas", f"{bundle_metadata['n_das']:,}")
+    m4.metric("Coherence issues", f"{bundle_metadata['household_coherence_issues']:,}")
+
+    view = st.radio(
+        "Synthetic-population view",
+        ["Population patterns", "Resident and household", "Quality and provenance"],
+        horizontal=True,
+        key="synpop_view",
+    )
+
+    households = h2j_population.drop_duplicates(["area", "household_id"]).copy()
+    if view == "Population patterns":
+        person_attribute = st.selectbox(
+            "Person attribute",
+            PERSON_ATTRIBUTES,
+            format_func=synpop_display_label,
+            index=PERSON_ATTRIBUTES.index("labour_force_status"),
+            key="synpop_person_attribute",
+        )
+        st.plotly_chart(
+            synpop_distribution_figure(
+                h2j_population,
+                person_attribute,
+                f"{synpop_display_label(person_attribute)} across synthetic people",
+            ),
+            width="stretch",
+            config=PLOTLY_CONFIG,
+        )
+        household_attribute = st.selectbox(
+            "Household attribute",
+            HOUSEHOLD_ATTRIBUTES,
+            format_func=synpop_display_label,
+            index=HOUSEHOLD_ATTRIBUTES.index("tenure"),
+            key="synpop_household_attribute",
+        )
+        st.plotly_chart(
+            synpop_distribution_figure(
+                households,
+                household_attribute,
+                f"{synpop_display_label(household_attribute)} across synthetic households",
+            ),
+            width="stretch",
+            config=PLOTLY_CONFIG,
+        )
+        st.caption(
+            "Person distributions use one row per synthetic person. Household distributions use one row per linked synthetic household."
+        )
+
+    elif view == "Resident and household":
+        da_options = sorted(h2j_population["area"].dropna().astype(str).unique().tolist())
+        selected_da = st.selectbox("Dissemination area", da_options, key="synpop_da")
+        pool = h2j_population.loc[h2j_population["area"].astype(str).eq(selected_da)].reset_index(drop=True)
+        resident_ids = pool["resident_id"].tolist()
+        selected_id = st.selectbox(
+            "Synthetic resident",
+            resident_ids,
+            format_func=lambda value: resident_option_label(
+                pool.loc[pool["resident_id"].eq(value)].iloc[0]
+            ),
+            key="synpop_h2j_resident",
+        )
+        selected = pool.loc[pool["resident_id"].eq(selected_id)].iloc[0]
+        person_left, household_right = st.columns(2)
+        with person_left:
+            st.markdown("#### Person attributes")
+            render_field_cards(synpop_profile_fields(selected, PERSON_ATTRIBUTES))
+        with household_right:
+            st.markdown("#### Household attributes")
+            render_field_cards(synpop_profile_fields(selected, HOUSEHOLD_ATTRIBUTES))
+        st.caption(
+            f"Synthetic resident {selected_id} belongs to synthetic household {selected['household_id']} in DA {selected_da}. "
+            "IDs are workflow identifiers, not real-world identities."
+        )
+        render_household_lens(
+            selected,
+            selected_fsa_context=selected_fsa_context,
+            dsm_profiles=dsm_profiles,
+            real_alignment=real_alignment,
+        )
+
+    else:
+        st.plotly_chart(validation_fit_figure(validation), width="stretch", config=PLOTLY_CONFIG)
+        st.caption(
+            "TVD compares synthetic and target category distributions; lower values indicate closer distributional fit. "
+            "The weakest attributes should be treated as exploratory rather than central evidence."
+        )
+        st.dataframe(
+            validation[
+                [
+                    "unit",
+                    "attribute",
+                    "control_tier",
+                    "n_areas",
+                    "mean_tvd",
+                    "p90_tvd",
+                    "mean_max_abs_pp",
+                    "fit_rating",
+                ]
+            ].sort_values(["unit", "mean_tvd"]),
+            width="stretch",
+            hide_index=True,
+        )
+        run_total = totals.loc[totals["area"].eq("__run_total__")]
+        if not run_total.empty:
+            row = run_total.iloc[0]
+            t1, t2, t3 = st.columns(3)
+            t1.metric("People total difference", f"{int(row['people_diff']):,}")
+            t2.metric("Household total difference", f"{int(row['household_diff']):,}")
+            t3.metric("Average household size", f"{float(row['synthetic_avg_household_size']):.2f}")
+        with st.expander("Support and assignment summary", expanded=False):
+            st.dataframe(support, width="stretch", hide_index=True)
+        with st.expander("Bundle provenance", expanded=False):
+            st.json(bundle_metadata)
 
 
 def render_esim_path(
@@ -831,7 +1003,9 @@ def render_esim_path(
     population: pd.DataFrame,
     valid_fsas: set[str],
 ) -> None:
-    tab_results, tab_programs, tab_info = st.tabs(["FSA Results", "Program Analysis", "Info"])
+    tab_results, tab_programs, tab_synpop, tab_info = st.tabs(
+        ["FSA Results", "Program Analysis", "Synthetic Population", "Info"]
+    )
     selected_scores = all_fsa_scores.loc[all_fsa_scores["fsa_context"] == selected_fsa_context]
     if selected_scores.empty:
         st.warning("No DSM alignment row found for the selected FSA.")
@@ -849,7 +1023,7 @@ def render_esim_path(
             st.info(
                 "Raw PRISM/load feature rows are not included for this FSA in the current demo extract. "
                 "The FSA-wide alignment indices are still available, but raw energy-feature diagnostics "
-                "should be added for full manuscript fidelity."
+                "should be added for a complete diagnostic view."
             )
         else:
             long_term_energy_metrics = [
@@ -1083,6 +1257,14 @@ def render_esim_path(
             "These are FSA-level normalized indices from the DSM report workflow. They describe local structural fit, not a resident-level recommendation."
         )
 
+    with tab_synpop:
+        render_synpop_path(
+            selected_fsa_context,
+            population,
+            dsm_profiles,
+            real_alignment,
+        )
+
     with tab_info:
         st.subheader("Workflow notes")
         st.write(
@@ -1133,8 +1315,8 @@ with logo_col:
     if ESIM_LOGO_IMAGE.exists():
         st.image(str(ESIM_LOGO_IMAGE), width=180)
 with title_col:
-    st.title("DSM Alignment Explorer")
-    st.caption("eSim 2026 | FSA-level demand-side-management relevance and capacity analysis")
+    st.title("DSM Alignment Explorer v2")
+    st.caption("eSim 2026 | FSA analysis with a synthetic-population extension")
 render_intro(metadata)
 demo_mode = "eSim DSM alignment"
 

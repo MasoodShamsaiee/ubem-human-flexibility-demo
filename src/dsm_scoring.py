@@ -179,7 +179,7 @@ def compute_report_alignment(
     dsm_profiles: pd.DataFrame,
     report_alignment: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
-    """Use real DSM report scores when present, otherwise compute toy proxy scores."""
+    """Use packaged DSM alignment scores when present, otherwise compute demo proxy scores."""
     if report_alignment is None or "fsa_context" not in dsm_profiles.columns:
         return compute_area_alignment(dsm_profiles)
 

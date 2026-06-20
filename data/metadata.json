@@ -1,7 +1,7 @@
 {
-  "demo_name": "eSim 2026 DSM Alignment Explorer",
-  "data_status": "demo-safe illustrative data",
-  "dsm_context_status": "small excerpt of normalized FSA-level DSM report outputs copied from local research reports",
+  "demo_name": "DSM Alignment Explorer v2",
+  "data_status": "research communication data with a validated synthetic-population subset",
+  "dsm_context_status": "normalized FSA-level DSM alignment outputs and energy-demand indicators for 94 Montreal FSAs",
   "disclaimer": "This is a research communication demo using simplified data. It illustrates the workflow and findings, not an operational DSM recommendation tool.",
   "source_repositories_reviewed": [
     {
@@ -25,8 +25,9 @@
     }
   ],
   "limitations": [
-    "Resident-level scores are illustrative profile alignments, not validated individual predictions.",
-    "DSM source logic is area/unit-level. This demo maps a synthetic resident to a demo DA and a real FSA-level DSM report context, then adds household resemblance modifiers for communication only.",
-    "Energy and socio-demographic values are toy values designed to preserve schema and qualitative relationships without exposing private data."
+    "The v1-demo Git tag preserves the eSim-only conference release; v2 adds a synthetic-population exploration layer.",
+    "The complete linked person-household bundle currently covers 30 dissemination areas in H2J. Other FSAs expose five compact profiles sampled from a Montreal-wide synthetic population artifact.",
+    "Resident-level scores are illustrative household-context overlays, not validated individual predictions or program recommendations.",
+    "DSM alignment remains an FSA-level analysis. Synthetic people and households add heterogeneity for exploration without changing the geographic scale of the program evidence."
   ]
 }

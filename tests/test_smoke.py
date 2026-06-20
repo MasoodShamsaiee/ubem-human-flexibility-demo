@@ -1,6 +1,16 @@
 import pandas as pd
 
 from src.dsm_scoring import compute_report_alignment, program_breakdown, score_resident
+from src.synpop_demo import (
+    distribution_figure,
+    household_overlay_figure,
+    read_bundle_metadata,
+    read_h2j_population,
+    read_population_totals,
+    read_support_summary,
+    read_validation_summary,
+    validation_fit_figure,
+)
 from src.utils import read_area_locations, read_dsm_profiles, read_fsa_geojson, read_fsa_resident_options, read_real_dsm_alignment
 from src.visualization import alignment_breakdown_bar, comparison_alignment_breakdown_bar, comparison_breakdown_bar, comparison_component_dumbbell_chart, comparison_component_radar_chart, comparison_dumbbell_chart, comparison_radar_chart
 
@@ -134,3 +144,41 @@ def test_headline_breakdown_charts_build():
     assert len(comparison_fig.data) >= 2
     assert len(radar_fig.data) == 2
     assert len(dumbbell_fig.data) >= 4
+
+
+def test_v2_synthetic_population_bundle_is_coherent():
+    people = read_h2j_population()
+    validation = read_validation_summary()
+    support = read_support_summary()
+    totals = read_population_totals()
+    metadata = read_bundle_metadata()
+
+    households = people.drop_duplicates(["area", "household_id"])
+
+    assert metadata["demo_version"] == "v2"
+    assert metadata["workflow_method"] == "joint_ipu_v1"
+    assert len(people) == metadata["n_people"] == 16278
+    assert len(households) == metadata["n_households"] == 8685
+    assert people["area"].nunique() == metadata["n_das"] == 30
+    assert people["household_id"].notna().all()
+    assert metadata["household_coherence_issues"] == 0
+    assert set(validation["attribute"]) == set(support["attribute"])
+    assert totals["area"].eq("__run_total__").any()
+
+
+def test_v2_synthetic_population_figures_build():
+    people = read_h2j_population()
+    validation = read_validation_summary()
+    dsm_profiles = read_dsm_profiles()
+    real_alignment = read_real_dsm_alignment()
+    resident = people.iloc[0].copy()
+    resident["inferred_schedule_type"] = "Mixed schedule"
+    scores, _ = score_resident(resident, dsm_profiles, real_alignment, fsa_context="H2J")
+
+    distribution = distribution_figure(people, "labour_force_status", "Labour-force status")
+    fit = validation_fit_figure(validation)
+    overlay = household_overlay_figure(scores)
+
+    assert len(distribution.data) == 1
+    assert len(fit.data) >= 2
+    assert overlay.layout.barmode == "group"
