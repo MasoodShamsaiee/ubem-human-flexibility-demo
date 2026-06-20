@@ -2,10 +2,16 @@ import pandas as pd
 
 from src.dsm_scoring import compute_report_alignment, program_breakdown, score_resident
 from src.synpop_demo import (
+    conditional_share_figure,
     distribution_figure,
     household_overlay_figure,
+    manuscript_validation_figure,
+    method_comparison_figure,
+    read_attribute_relevance,
     read_bundle_metadata,
     read_h2j_population,
+    read_manuscript_validation,
+    read_method_comparison,
     read_population_totals,
     read_support_summary,
     read_validation_summary,
@@ -182,3 +188,28 @@ def test_v2_synthetic_population_figures_build():
     assert len(distribution.data) == 1
     assert len(fit.data) >= 2
     assert overlay.layout.barmode == "group"
+
+
+def test_buildsys_presentation_artifacts_and_figures_build():
+    people = read_h2j_population()
+    households = people.drop_duplicates(["area", "household_id"])
+    manuscript = read_manuscript_validation()
+    comparison = read_method_comparison()
+    relevance = read_attribute_relevance()
+
+    conditional = conditional_share_figure(
+        households,
+        category="tenure",
+        condition="household_type",
+        title="Tenure by household type",
+    )
+    manuscript_fig = manuscript_validation_figure(manuscript)
+    comparison_fig = method_comparison_figure(comparison)
+
+    assert len(manuscript) == 16
+    assert len(comparison) == 16
+    assert len(relevance) == 16
+    assert comparison[["Proposed", "Sample-free", "Bayes+raking", "IPF/QISI-style"]].idxmin(axis=1).eq("Proposed").sum() == 10
+    assert conditional.layout.barmode == "stack"
+    assert len(manuscript_fig.data) >= 2
+    assert comparison_fig.layout.xaxis.type == "log"

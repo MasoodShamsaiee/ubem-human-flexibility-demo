@@ -16,25 +16,14 @@ FEEDBACK_DIR = ROOT / "data" / "feedback"
 FEEDBACK_PATH = FEEDBACK_DIR / "user_feedback.csv"
 ESIM_MATRIX_IMAGE = ROOT / "assets" / "esim_evaluation_matrix.jpg"
 ESIM_LOGO_IMAGE = ROOT / "assets" / "esim2026_logo.png"
+BUILDSYS_BADGE_IMAGE = ROOT / "assets" / "buildsys2026_banff.jpeg"
+BUILDSYS_WORKFLOW_IMAGE = ROOT / "assets" / "buildsys_synpop_workflow.jpg"
+BUILDSYS_CASE_MAP_IMAGE = ROOT / "assets" / "buildsys_case_study_map.png"
+BUILDSYS_CASE_CONTEXT_IMAGE = ROOT / "assets" / "buildsys_case_study_context.png"
+BUILDSYS_PERIOD_BUILT_IMAGE = ROOT / "assets" / "buildsys_period_built_result.png"
+BUILDSYS_COMMUTE_IMAGE = ROOT / "assets" / "buildsys_commute_mode_result.png"
 PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
 MAP_PLOTLY_CONFIG = {"displayModeBar": True, "scrollZoom": True, "responsive": True}
-
-BUILDSYS_ATTRIBUTE_SUPPORT = pd.DataFrame(
-    [
-        ("Age group", "Stable", 0.0014, "Core person synthesis"),
-        ("Labour force status", "Stable", 0.0021, "Core person synthesis"),
-        ("Household type", "Stable", 0.0024, "Core generation proxy"),
-        ("Household income", "Stable", 0.0030, "Household synthesis"),
-        ("Tenure", "Stable", 0.0045, "Household synthesis"),
-        ("Bedrooms", "Stable", 0.0038, "Household synthesis"),
-        ("Dwelling type", "Moderate", 0.0098, "Sparse handling"),
-        ("Core housing need", "Moderate", 0.0109, "Sparse handling"),
-        ("Commute duration", "Moderate", 0.0117, "Exploratory timing proxy"),
-        ("Commute mode", "Moderate", 0.0131, "Exploratory timing proxy"),
-        ("Dwelling condition", "Moderate", 0.0136, "Sparse handling"),
-    ],
-    columns=["Attribute", "Support", "TVD", "Interpretation"],
-)
 
 ESIM_PROGRAM_CONTEXT = pd.DataFrame(
     [
@@ -161,17 +150,20 @@ ESIM_COMPONENT_DESCRIPTIONS = {
 }
 
 from src.dsm_scoring import all_fsa_report_alignment, compute_report_alignment, program_breakdown, score_resident
-from src.synthetic_population import resident_summary
 from src.synpop_demo import (
     HOUSEHOLD_ATTRIBUTES,
     PERSON_ATTRIBUTES,
+    conditional_share_figure,
     display_label as synpop_display_label,
     distribution_figure as synpop_distribution_figure,
-    household_overlay_figure,
-    inferred_schedule,
+    manuscript_validation_figure,
+    method_comparison_figure,
     profile_fields as synpop_profile_fields,
+    read_attribute_relevance,
     read_bundle_metadata,
     read_h2j_population,
+    read_manuscript_validation,
+    read_method_comparison,
     read_population_totals,
     read_support_summary,
     read_validation_summary,
@@ -625,38 +617,68 @@ def render_dsm_intro(metadata: dict) -> None:
 def render_synpop_intro() -> None:
     st.markdown(
         """
-        This presentation explores a synthetic population built for urban energy and demand-side-management
-        research. It represents plausible people and households while preserving the distributional patterns,
-        geographic controls, and household relationships needed for area-based analysis.
+        **A Census-Consistent Synthetic Population Pipeline for Urban Energy Systems Research**
+
+        Urban energy studies need occupant representations that connect people, households, and dwellings without
+        exposing confidential records. This work combines 2021 dissemination-area census controls with public-use
+        microdata to construct coherent synthetic households and people, then extends them with housing, mobility,
+        and social-context attributes selected for occupancy-sensitive urban energy research.
         """
     )
-    with st.expander("Synthetic-population workflow", expanded=True):
-        left, right = st.columns(2)
-        with left:
-            st.markdown(
-                """
-                **What is presented**
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Manuscript case study", "133 DAs")
+    c2.metric("Weighted person seed", "223,443")
+    c3.metric("Household seed", "37,512")
+    c4.metric("Lowest TVD", "10 of 16")
 
-                - Synthetic people linked to coherent synthetic households
-                - Person, household, dwelling, tenure, income, labour, and commute attributes
-                - Distribution views across the validated H2J demonstration bundle
-                - A resident and household explorer for inspecting joint attribute combinations
-                """
+    st.markdown("#### Contributions")
+    left, right = st.columns(2)
+    with left:
+        st.markdown(
+            """
+            - **Energy-oriented attributes:** housing, mobility, and social context beyond a demographic-only population.
+            - **Coherent structure:** household, person, and dwelling attributes remain linked at DA scale.
+            """
+        )
+    with right:
+        st.markdown(
+            """
+            - **Support-aware synthesis:** weak and restricted-universe variables use conservative fallback conditioning.
+            - **Fit-for-purpose validation:** strong evidence is separated from attributes that remain exploratory.
+            """
+        )
+    st.markdown("#### Four-stage workflow")
+    stage_0, stage_1, stage_2, stage_3 = st.columns(4)
+    stage_0.markdown("**0. Support assessment**  \nScreen marginals, seed coverage, and conditional support.")
+    stage_1.markdown("**1. Coherent core**  \nGenerate complete households and their linked people.")
+    stage_2.markdown("**2. Stage-aware synthesis**  \nAssign stable attributes in their natural unit.")
+    stage_3.markdown("**3. Sparse handling**  \nBack off conditioning for weak or restricted variables.")
+    with st.expander("Full workflow figure", expanded=False):
+        if BUILDSYS_WORKFLOW_IMAGE.exists():
+            st.image(
+                str(BUILDSYS_WORKFLOW_IMAGE),
+                caption="Public inputs, support assessment, coherent synthesis, sparse handling, and validation.",
+                width="stretch",
             )
-        with right:
-            st.markdown(
-                """
-                **How to interpret it**
-
-                - Records are synthetic and do not describe identifiable residents.
-                - Quality views compare synthetic distributions with area-level target distributions.
-                - The current full bundle covers 30 dissemination areas in H2J.
-                - The DSM alignment analysis is available as a separate presentation from the selector above.
-                """
-            )
+    with st.expander("Case-study geography", expanded=False):
+        map_left, map_right = st.columns(2)
+        with map_left:
+            if BUILDSYS_CASE_MAP_IMAGE.exists():
+                st.image(
+                    str(BUILDSYS_CASE_MAP_IMAGE),
+                    caption="Plateau-Mont-Royal dissemination areas and population.",
+                    width="stretch",
+                )
+        with map_right:
+            if BUILDSYS_CASE_CONTEXT_IMAGE.exists():
+                st.image(
+                    str(BUILDSYS_CASE_CONTEXT_IMAGE),
+                    caption="Case-study area within the Island of Montreal.",
+                    width="stretch",
+                )
     st.caption(
-        "This is a research communication demo. Synthetic records support population-level exploration and "
-        "method evaluation; they are not individual predictions."
+        "The manuscript reports a 133-DA Plateau-Mont-Royal case study. Interactive records below come from a "
+        "separate reproducible 30-DA H2J bundle and are labeled accordingly."
     )
 
 
@@ -840,89 +862,43 @@ def load_synpop_demo_data():
         read_support_summary(),
         read_population_totals(),
         read_bundle_metadata(),
+        read_manuscript_validation(),
+        read_method_comparison(),
+        read_attribute_relevance(),
     )
-
-
-def render_household_lens(
-    resident_row: pd.Series,
-    *,
-    selected_fsa_context: str,
-    dsm_profiles: pd.DataFrame,
-    real_alignment: pd.DataFrame,
-) -> None:
-    resident = resident_row.copy()
-    schedule_value = resident.get("inferred_schedule_type")
-    if pd.isna(schedule_value) or not str(schedule_value).strip():
-        schedule_value = inferred_schedule(resident)
-    resident["inferred_schedule_type"] = schedule_value
-    scores, _ = score_resident(
-        resident,
-        dsm_profiles,
-        real_alignment,
-        fsa_context=selected_fsa_context,
-    )
-    st.markdown("#### Illustrative household lens")
-    st.caption(
-        "This overlay keeps the FSA baseline visible and adds a small household-context modifier. "
-        "It is a communication aid, not an enrolment, eligibility, or impact prediction."
-    )
-    st.plotly_chart(household_overlay_figure(scores), width="stretch", config=PLOTLY_CONFIG)
-    score_table = scores[
-        ["program", "area_context_score", "household_context_score", "alignment_score"]
-    ].copy()
-    score_table.columns = ["Program", "FSA baseline", "Household context", "Illustrative overlay"]
-    st.dataframe(score_table, width="stretch", hide_index=True)
 
 
 def render_synpop_path(
     selected_fsa_context: str,
     population: pd.DataFrame,
 ) -> None:
-    h2j_population, validation, support, totals, bundle_metadata = load_synpop_demo_data()
-    st.subheader("Synthetic population")
-    st.write(
-        "This section adds household and person heterogeneity to the FSA-level DSM workflow. "
-        "The records are synthetic and represent plausible combinations constrained by public-data distributions; "
-        "they are not identifiable residents."
-    )
-
-    if selected_fsa_context != "H2J":
-        st.info(
-            "The complete validated bundle currently covers 30 dissemination areas in H2J. "
-            f"For FSA {selected_fsa_context}, the app shows five core profiles sampled from the Montreal-wide "
-            "synthetic population artifact."
-        )
-        profiles = population.loc[population["fsa_context"].eq(selected_fsa_context)].reset_index(drop=True)
-        if profiles.empty:
-            st.warning("No synthetic profiles are available for this FSA.")
-            return
-        selected_id = st.selectbox(
-            "Synthetic profile",
-            profiles["resident_id"].tolist(),
-            format_func=lambda value: resident_option_label(
-                profiles.loc[profiles["resident_id"].eq(value)].iloc[0]
-            ),
-            key=f"synpop_profile_{selected_fsa_context}",
-        )
-        selected = profiles.loc[profiles["resident_id"].eq(selected_id)].iloc[0]
-        render_field_cards(synpop_profile_fields(selected, PERSON_ATTRIBUTES + HOUSEHOLD_ATTRIBUTES))
-        return
-
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Synthetic people", f"{bundle_metadata['n_people']:,}")
-    m2.metric("Synthetic households", f"{bundle_metadata['n_households']:,}")
-    m3.metric("Dissemination areas", f"{bundle_metadata['n_das']:,}")
-    m4.metric("Coherence issues", f"{bundle_metadata['household_coherence_issues']:,}")
-
-    view = st.radio(
-        "Synthetic-population view",
-        ["Population patterns", "Resident and household", "Quality and provenance"],
-        horizontal=True,
-        key="synpop_view",
-    )
-
+    (
+        h2j_population,
+        validation,
+        support,
+        totals,
+        bundle_metadata,
+        manuscript_validation,
+        method_comparison,
+        attribute_relevance,
+    ) = load_synpop_demo_data()
     households = h2j_population.drop_duplicates(["area", "household_id"]).copy()
-    if view == "Population patterns":
+    tab_sample, tab_structure, tab_evidence, tab_methods = st.tabs(
+        ["Interactive sample", "Joint structure", "Manuscript evidence", "Methods and boundaries"]
+    )
+
+    with tab_sample:
+        st.subheader("Reproducible 30-DA interactive sample")
+        st.caption(
+            "This deployable H2J bundle demonstrates the public output contract and interaction design. "
+            "It is not the full 133-DA manuscript case study."
+        )
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Synthetic people", f"{bundle_metadata['n_people']:,}")
+        m2.metric("Synthetic households", f"{bundle_metadata['n_households']:,}")
+        m3.metric("Dissemination areas", f"{bundle_metadata['n_das']:,}")
+        m4.metric("Coherence issues", f"{bundle_metadata['household_coherence_issues']:,}")
+
         person_attribute = st.selectbox(
             "Person attribute",
             PERSON_ATTRIBUTES,
@@ -959,7 +935,37 @@ def render_synpop_path(
             "Person distributions use one row per synthetic person. Household distributions use one row per linked synthetic household."
         )
 
-    elif view == "Resident and household":
+    with tab_structure:
+        st.subheader("Household-person-dwelling coherence")
+        st.write(
+            "The workflow constructs complete households first and synthesizes attributes in the unit where they "
+            "belong. These conditional views expose relationships that would be hidden by marginal totals alone."
+        )
+        left_plot, right_plot = st.columns(2)
+        with left_plot:
+            st.plotly_chart(
+                conditional_share_figure(
+                    households,
+                    category="tenure",
+                    condition="household_type",
+                    title="Tenure within household types",
+                ),
+                width="stretch",
+                config=PLOTLY_CONFIG,
+            )
+        with right_plot:
+            st.plotly_chart(
+                conditional_share_figure(
+                    households,
+                    category="dwelling_type",
+                    condition="household_size",
+                    title="Dwelling type within household sizes",
+                ),
+                width="stretch",
+                config=PLOTLY_CONFIG,
+            )
+
+        st.markdown("#### Inspect one synthetic household")
         da_options = sorted(h2j_population["area"].dropna().astype(str).unique().tolist())
         selected_da = st.selectbox("Dissemination area", da_options, key="synpop_da")
         pool = h2j_population.loc[h2j_population["area"].astype(str).eq(selected_da)].reset_index(drop=True)
@@ -985,38 +991,118 @@ def render_synpop_path(
             "IDs are workflow identifiers, not real-world identities."
         )
 
-    else:
-        st.plotly_chart(validation_fit_figure(validation), width="stretch", config=PLOTLY_CONFIG)
-        st.caption(
-            "TVD compares synthetic and target category distributions; lower values indicate closer distributional fit. "
-            "The weakest attributes should be treated as exploratory rather than central evidence."
-        )
-        st.dataframe(
-            validation[
-                [
-                    "unit",
-                    "attribute",
-                    "control_tier",
-                    "n_areas",
-                    "mean_tvd",
-                    "p90_tvd",
-                    "mean_max_abs_pp",
-                    "fit_rating",
-                ]
-            ].sort_values(["unit", "mean_tvd"]),
+    with tab_evidence:
+        st.subheader("Reported 133-DA manuscript results")
+        st.plotly_chart(
+            manuscript_validation_figure(manuscript_validation),
             width="stretch",
-            hide_index=True,
+            config=PLOTLY_CONFIG,
         )
-        run_total = totals.loc[totals["area"].eq("__run_total__")]
-        if not run_total.empty:
-            row = run_total.iloc[0]
-            t1, t2, t3 = st.columns(3)
-            t1.metric("People total difference", f"{int(row['people_diff']):,}")
-            t2.metric("Household total difference", f"{int(row['household_diff']):,}")
-            t3.metric("Average household size", f"{float(row['synthetic_avg_household_size']):.2f}")
-        with st.expander("Support and assignment summary", expanded=False):
+        st.caption(
+            "TVD measures marginal-distribution disagreement from 0 to 1; lower is better. "
+            "Marginal fidelity is necessary evidence, but it does not establish causal or simulation validity."
+        )
+        strong = manuscript_validation.loc[
+            manuscript_validation["recommended_use"].str.startswith("Central"),
+            ["unit", "attribute", "tvd", "mae_pp", "recommended_use"],
+        ]
+        exploratory = manuscript_validation.loc[
+            manuscript_validation["recommended_use"].str.startswith("Exploratory"),
+            ["unit", "attribute", "tvd", "mae_pp", "recommended_use"],
+        ]
+        strong_col, exploratory_col = st.columns(2)
+        with strong_col:
+            st.markdown("#### Central interpretation")
+            st.dataframe(strong, width="stretch", hide_index=True)
+        with exploratory_col:
+            st.markdown("#### Exploratory or refinement targets")
+            st.dataframe(exploratory, width="stretch", hide_index=True)
+
+        st.plotly_chart(
+            method_comparison_figure(method_comparison),
+            width="stretch",
+            config=PLOTLY_CONFIG,
+        )
+        st.caption(
+            "The proposed workflow has the lowest TVD on 10 of 16 focus attributes. Comparisons are shown on a "
+            "logarithmic axis because the IPF/QISI-style commute-mode result is substantially larger."
+        )
+        figure_left, figure_right = st.columns(2)
+        with figure_left:
+            if BUILDSYS_PERIOD_BUILT_IMAGE.exists():
+                st.image(
+                    str(BUILDSYS_PERIOD_BUILT_IMAGE),
+                    caption="Census and synthetic period-built distributions.",
+                    width="stretch",
+                )
+        with figure_right:
+            if BUILDSYS_COMMUTE_IMAGE.exists():
+                st.image(
+                    str(BUILDSYS_COMMUTE_IMAGE),
+                    caption="DA-level commute-mode difference ratio.",
+                    width="stretch",
+                )
+
+    with tab_methods:
+        st.subheader("Four-stage support-aware workflow")
+        st.markdown(
+            """
+            1. **Support assessment:** check DA marginals, seed availability, category occupancy, and conditional support.
+            2. **Core household-person generation:** instantiate complete donor households to preserve member structure.
+            3. **Stage-aware synthesis:** assign stable person and household attributes in their natural unit.
+            4. **Sparse handling:** progressively back off conditioning for weak or restricted-universe attributes.
+            """
+        )
+        st.dataframe(attribute_relevance, width="stretch", hide_index=True)
+        st.markdown("#### Interpretation boundaries")
+        st.markdown(
+            """
+            - Commute mode and duration are provisional proxies for routine timing, not observed occupancy schedules.
+            - Period built and dwelling condition require additional harmonization and sensitivity analysis.
+            - Social-positioning variables describe aggregate structural context and must not be interpreted as innate
+              or deterministic causes of energy behaviour.
+            - Marginal agreement does not by itself prove realistic joint structure, causal validity, or downstream
+              UBEM simulation validity.
+            """
+        )
+        st.markdown(
+            "**Next steps:** link mobility to accessibility and time-use information, refine housing harmonization, "
+            "and trace synthesis uncertainty into building-stock and occupant-behaviour simulations."
+        )
+        st.markdown(
+            "[Paper DOI](https://doi.org/10.1145/3744256.3812586) | "
+            "[Code repository](https://github.com/MasoodShamsaiee/synthetic-population-qc) | "
+            "[BuildSys 2026](https://buildsys.acm.org/2026/)"
+        )
+        with st.expander("Interactive bundle validation and provenance", expanded=False):
+            st.plotly_chart(validation_fit_figure(validation), width="stretch", config=PLOTLY_CONFIG)
+            st.caption(
+                "These metrics describe the separate 30-DA interactive bundle, not the 133-DA manuscript table."
+            )
+            st.dataframe(
+                validation[
+                    [
+                        "unit",
+                        "attribute",
+                        "control_tier",
+                        "n_areas",
+                        "mean_tvd",
+                        "p90_tvd",
+                        "mean_max_abs_pp",
+                        "fit_rating",
+                    ]
+                ].sort_values(["unit", "mean_tvd"]),
+                width="stretch",
+                hide_index=True,
+            )
+            run_total = totals.loc[totals["area"].eq("__run_total__")]
+            if not run_total.empty:
+                row = run_total.iloc[0]
+                t1, t2, t3 = st.columns(3)
+                t1.metric("People total difference", f"{int(row['people_diff']):,}")
+                t2.metric("Household total difference", f"{int(row['household_diff']):,}")
+                t3.metric("Average household size", f"{float(row['synthetic_avg_household_size']):.2f}")
             st.dataframe(support, width="stretch", hide_index=True)
-        with st.expander("Bundle provenance", expanded=False):
             st.json(bundle_metadata)
 
 
@@ -1324,14 +1410,6 @@ population, dsm_profiles, real_alignment, area_locations, fsa_geojson, metadata 
 area_scores = compute_report_alignment(dsm_profiles, real_alignment)
 all_fsa_scores = all_fsa_report_alignment(real_alignment)
 
-logo_col, title_col = st.columns([0.18, 0.82], vertical_alignment="center")
-with logo_col:
-    if ESIM_LOGO_IMAGE.exists():
-        st.image(str(ESIM_LOGO_IMAGE), width=180)
-with title_col:
-    st.title("Urban Energy Research Explorer v2")
-    st.caption("eSim 2026 | Synthetic population and DSM alignment presentations")
-
 presentation_mode = st.radio(
     "Choose presentation",
     ["Synthetic Population", "DSM Alignment"],
@@ -1339,6 +1417,20 @@ presentation_mode = st.radio(
     key="presentation_mode",
     help="The two presentations are kept separate while their combined workflow is being developed.",
 )
+
+logo_col, title_col = st.columns([0.22, 0.78], vertical_alignment="center")
+with logo_col:
+    if presentation_mode == "Synthetic Population" and BUILDSYS_BADGE_IMAGE.exists():
+        st.image(str(BUILDSYS_BADGE_IMAGE), width=220)
+    elif presentation_mode == "DSM Alignment" and ESIM_LOGO_IMAGE.exists():
+        st.image(str(ESIM_LOGO_IMAGE), width=180)
+with title_col:
+    if presentation_mode == "Synthetic Population":
+        st.title("Census-Consistent Synthetic Population")
+        st.caption("ACM BuildSys 2026 | Banff, Alberta | June 22-25, 2026")
+    else:
+        st.title("DSM Alignment Explorer")
+        st.caption("eSim 2026 | Montreal FSA relevance and capacity analysis")
 
 fsa_options = real_alignment["fsa"].sort_values().tolist()
 valid_fsas = set(fsa_options)

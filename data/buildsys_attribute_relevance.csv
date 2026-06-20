@@ -1,0 +1,17 @@
+attribute,family,energy_relevance,evidence_role
+Age group,Core demographic,"Occupancy patterns, base demand, and heating sensitivity across life stages",Core control
+Sex,Core demographic,Person-level population realism,Core control
+Household size,Household structure,"Occupancy intensity, shared appliance use, and demand scaling",Core control
+Household type,Household structure,"Single-person, family, and multi-adult occupancy dynamics",Core control
+Labour-force status,Person context,"Daytime occupancy, schedule regularity, and daily load profiles",Core control
+Education level,Person context,"Proxy for appliance ownership, preferences, and energy awareness",Core control
+Household income,Household context,"Appliance stock, dwelling use, and affordability constraints",Core control
+Dwelling type,Energy-oriented extension,"Thermal and load differences among detached, attached, and apartment forms",Central with caveat
+Tenure,Energy-oriented extension,"Appliance ownership, retrofit authority, and heating behaviour",Central
+Bedrooms,Energy-oriented extension,"Dwelling size and internal space-use proxy",Central
+Period built,Energy-oriented extension,"Envelope vintage and heating-sensitivity proxy",Exploratory
+Dwelling condition,Energy-oriented extension,"Repair state and possible energy inefficiency",Exploratory
+Core housing need,Energy-oriented extension,"Housing adequacy, crowding pressure, and thermal-comfort constraints",Central with caveat
+Commute mode,Energy-oriented extension,"Mobility routine and occupancy-timing proxy",Exploratory
+Commute duration,Energy-oriented extension,"Departure/arrival timing and peak-shape proxy",Exploratory
+Citizenship status,Energy-oriented extension,"Aggregate social-positioning and housing-pathway context",Central with ethical caution

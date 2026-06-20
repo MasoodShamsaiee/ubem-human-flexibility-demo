@@ -96,6 +96,18 @@ def read_bundle_metadata() -> dict:
     return json.loads((DATA_DIR / "synpop_bundle_metadata.json").read_text(encoding="utf-8"))
 
 
+def read_manuscript_validation() -> pd.DataFrame:
+    return pd.read_csv(DATA_DIR / "buildsys_manuscript_validation.csv")
+
+
+def read_method_comparison() -> pd.DataFrame:
+    return pd.read_csv(DATA_DIR / "buildsys_method_comparison.csv")
+
+
+def read_attribute_relevance() -> pd.DataFrame:
+    return pd.read_csv(DATA_DIR / "buildsys_attribute_relevance.csv")
+
+
 def distribution_figure(frame: pd.DataFrame, column: str, title: str) -> go.Figure:
     values = frame[column].map(display_text).fillna("Not available")
     counts = values.value_counts(dropna=False).rename_axis("Category").reset_index(name="Count")
@@ -120,6 +132,125 @@ def distribution_figure(frame: pd.DataFrame, column: str, title: str) -> go.Figu
         showlegend=False,
     )
     fig.update_xaxes(title="Share", tickformat=".0%", range=[0, max(float(counts["Share"].max()) * 1.12, 0.05)])
+    fig.update_yaxes(title="")
+    return fig
+
+
+def conditional_share_figure(
+    frame: pd.DataFrame,
+    *,
+    category: str,
+    condition: str,
+    title: str,
+) -> go.Figure:
+    data = frame[[category, condition]].dropna().copy()
+    data["Category"] = data[category].map(display_text)
+    data["Condition"] = data[condition].map(display_text)
+    counts = (
+        data.groupby(["Condition", "Category"], observed=True)
+        .size()
+        .rename("Count")
+        .reset_index()
+    )
+    counts["Share"] = counts["Count"] / counts.groupby("Condition")["Count"].transform("sum")
+    fig = px.bar(
+        counts,
+        x="Condition",
+        y="Share",
+        color="Category",
+        barmode="stack",
+        title=title,
+        custom_data=["Count"],
+    )
+    fig.update_traces(
+        hovertemplate="<b>%{x}</b><br>%{fullData.name}: %{y:.1%}<br>Records: %{customdata[0]:,}<extra></extra>"
+    )
+    fig.update_layout(
+        height=390,
+        margin=dict(l=8, r=12, t=48, b=72),
+        legend=dict(orientation="h", y=-0.27, x=0, title_text=""),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_xaxes(title="", tickangle=-15)
+    fig.update_yaxes(title="Within-group share", tickformat=".0%", range=[0, 1])
+    return fig
+
+
+def manuscript_validation_figure(summary: pd.DataFrame) -> go.Figure:
+    data = summary.copy().sort_values("tvd", ascending=False)
+    fig = px.scatter(
+        data,
+        x="tvd",
+        y="attribute",
+        color="support_class",
+        symbol="unit",
+        size="mae_pp",
+        color_discrete_map={"Stable": BLUE, "Moderately sparse": ORANGE},
+        custom_data=["unit", "mae_pp", "validation_basis", "recommended_use"],
+        title="Manuscript validation across the 133-DA Plateau-Mont-Royal case study",
+    )
+    fig.update_traces(
+        hovertemplate=(
+            "<b>%{y}</b><br>Unit: %{customdata[0]}<br>TVD: %{x:.4f}<br>"
+            "MAE: %{customdata[1]:.2f} pp<br>Route: %{customdata[2]}<br>"
+            "Use: %{customdata[3]}<extra></extra>"
+        )
+    )
+    fig.update_layout(
+        height=570,
+        margin=dict(l=8, r=12, t=52, b=52),
+        legend=dict(orientation="h", y=-0.13, x=0, title_text=""),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_xaxes(title="Total variation distance (lower is better)", rangemode="tozero")
+    fig.update_yaxes(title="")
+    return fig
+
+
+def method_comparison_figure(comparison: pd.DataFrame) -> go.Figure:
+    methods = ["Proposed", "Sample-free", "Bayes+raking", "IPF/QISI-style"]
+    long = comparison.melt(
+        id_vars=["unit", "attribute"],
+        value_vars=methods,
+        var_name="Method",
+        value_name="TVD",
+    )
+    winners = comparison[methods].idxmin(axis=1)
+    winner_lookup = dict(zip(comparison["attribute"], winners))
+    long["Best on attribute"] = long.apply(
+        lambda row: "Best" if winner_lookup[row["attribute"]] == row["Method"] else "Other",
+        axis=1,
+    )
+    fig = px.scatter(
+        long,
+        x="TVD",
+        y="attribute",
+        color="Method",
+        symbol="Best on attribute",
+        log_x=True,
+        color_discrete_map={
+            "Proposed": BLUE,
+            "Sample-free": ORANGE,
+            "Bayes+raking": "#2ca02c",
+            "IPF/QISI-style": "#d62728",
+        },
+        category_orders={"Method": methods, "Best on attribute": ["Best", "Other"]},
+        custom_data=["unit", "Best on attribute"],
+        title="Method comparison on 16 focus attributes",
+    )
+    fig.update_traces(
+        hovertemplate="<b>%{y}</b><br>Method: %{fullData.name}<br>TVD: %{x:.4f}<br>%{customdata[1]}<extra></extra>"
+    )
+    fig.update_layout(
+        height=600,
+        margin=dict(l=8, r=12, t=52, b=55),
+        legend=dict(orientation="h", y=-0.14, x=0, title_text=""),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_xaxes(title="TVD on logarithmic scale (lower is better)")
     fig.update_yaxes(title="")
     return fig
 

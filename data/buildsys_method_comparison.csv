@@ -1,0 +1,17 @@
+unit,attribute,Proposed,Sample-free,Bayes+raking,IPF/QISI-style
+Person,Age group,0.0014,0.0018,0.0017,0.0022
+Person,Citizenship status,0.0042,0.0038,0.0039,0.0049
+Person,Commute duration,0.0117,0.0108,0.0109,0.0126
+Person,Commute mode,0.0131,0.0112,0.0114,0.7596
+Person,Education level,0.0026,0.0029,0.0028,0.0037
+Person,Labour-force status,0.0021,0.0025,0.0024,0.0031
+Person,Sex,0.0010,0.0012,0.0011,0.0015
+Household,Bedrooms,0.0038,0.0046,0.0045,0.0062
+Household,Core housing need,0.0109,0.0104,0.0105,0.0117
+Household,Dwelling condition,0.0136,0.0124,0.0125,0.0142
+Household,Dwelling type,0.0098,0.0106,0.0108,0.0121
+Household,Household income,0.0030,0.0033,0.0032,0.0038
+Household,Household size,0.0019,0.0023,0.0024,0.0030
+Household,Household type,0.0024,0.0029,0.0028,0.0035
+Household,Period built,0.0057,0.0064,0.0065,0.0071
+Household,Tenure,0.0045,0.0039,0.0040,0.0048

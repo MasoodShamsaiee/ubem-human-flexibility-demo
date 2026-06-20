@@ -1,12 +1,15 @@
 # Urban Energy Research Explorer v2
 
-A Streamlit research communication demo developed for eSim 2026. Version 2 combines the Montreal FSA demand-side-management alignment workflow with a synthetic-population exploration layer.
+A Streamlit research communication suite with two deliberately separate presentations:
+
+- **Synthetic Population**, aligned with the BuildSys 2026 paper *A Census-Consistent Synthetic Population Pipeline for Urban Energy Systems Research*
+- **DSM Alignment**, developed for the eSim 2026 conference demonstration
 
 The eSim-only conference release is preserved by the Git tag `v1-demo`.
 
 The app opens with a top-level presentation selector. **Synthetic Population** is currently the default and is presented independently from **DSM Alignment**; the two workflows are intentionally not merged in this release.
 
-The app lets visitors select a Montreal Forward Sortation Area (FSA) from a map and inspect how that FSA aligns with four program pathways:
+The DSM presentation lets visitors select a Montreal Forward Sortation Area (FSA) from a map and inspect how that FSA aligns with four program pathways:
 
 - Tarif Flex D
 - Hilo
@@ -15,13 +18,25 @@ The app lets visitors select a Montreal Forward Sortation Area (FSA) from a map 
 
 The demo is intentionally spatial and program-oriented. It illustrates FSA-level relevance, capacity, and policy-gap diagnostics; it is not an operational program-enrolment or household-level recommendation tool.
 
-## Workflow
+## Synthetic Population Presentation
+
+The BuildSys presentation follows the manuscript structure:
+
+1. Research gap, contribution, and four-stage support-aware workflow
+2. Energy-oriented person, household, dwelling, and mobility attributes
+3. Interactive population and linked household exploration
+4. Reported 133-DA manuscript validation and comparison with three baseline families
+5. Explicit interpretation boundaries and future work
+
+The manuscript case study covers 133 Plateau-Mont-Royal DAs. The interactive deployment uses a separate reproducible 30-DA H2J sample with 16,278 people linked to 8,685 households. The interface labels these scopes separately.
+
+## DSM Workflow
 
 1. Select a Montreal FSA from the map.
 2. Review long-term energy features, short-term winter load features, and socio-demographic context for the selected FSA.
 3. Compare program scores while keeping demand-related and capacity-related dimensions separate.
 4. Use the relevance-capacity matrix to explore ideal targets, policy gaps, low-priority areas, and minimal-impact areas.
-5. Explore synthetic person and household patterns, then open the info tab for interpretation boundaries and author links.
+5. Open the info tab for interpretation boundaries and author links.
 
 ## Demo Data
 
@@ -35,7 +50,7 @@ The demo is intentionally spatial and program-oriented. It illustrates FSA-level
 
 `data/demo_montreal_fsa_context.geojson` contains the lightweight Montreal FSA boundary file used for the map.
 
-The synthetic-population extension includes a validated 30-DA H2J bundle with 16,278 synthetic people linked to 8,685 synthetic households. Other FSAs retain five compact profiles sampled from the Montreal-wide synthetic population artifact. Synthetic records represent plausible combinations constrained by public-data distributions; they are not identifiable residents.
+Synthetic records represent plausible combinations constrained by public-data distributions; they are not identifiable residents.
 
 The H2J bundle is packaged in compact CSV artifacts:
 
@@ -44,6 +59,9 @@ The H2J bundle is packaged in compact CSV artifacts:
 - `data/synpop_support_summary.csv`
 - `data/synpop_population_totals_audit.csv`
 - `data/synpop_bundle_metadata.json`
+- `data/buildsys_manuscript_validation.csv`
+- `data/buildsys_method_comparison.csv`
+- `data/buildsys_attribute_relevance.csv`
 
 All outputs are research-demo data and should be interpreted as communication and diagnostic results, not final planning recommendations or household-level predictions.
 
