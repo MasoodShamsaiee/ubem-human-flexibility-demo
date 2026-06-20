@@ -231,7 +231,7 @@ except ImportError:
     comparison_component_dumbbell_chart = None
 
 
-st.set_page_config(page_title="DSM Alignment Explorer v2", page_icon=":zap:", layout="wide")
+st.set_page_config(page_title="Urban Energy Research Explorer v2", page_icon=":zap:", layout="wide")
 
 st.markdown(
     """
@@ -587,7 +587,7 @@ def render_feedback_form(
             st.success("Thanks. Feedback submitted.")
 
 
-def render_intro(metadata: dict) -> None:
+def render_dsm_intro(metadata: dict) -> None:
     st.markdown(
         """
         This app is a demo for the demand-side-management alignment workflow developed by
@@ -620,6 +620,44 @@ def render_intro(metadata: dict) -> None:
                 """
             )
     st.caption("This is a research communication demo using simplified data. It illustrates the workflow and findings, not an operational DSM recommendation tool.")
+
+
+def render_synpop_intro() -> None:
+    st.markdown(
+        """
+        This presentation explores a synthetic population built for urban energy and demand-side-management
+        research. It represents plausible people and households while preserving the distributional patterns,
+        geographic controls, and household relationships needed for area-based analysis.
+        """
+    )
+    with st.expander("Synthetic-population workflow", expanded=True):
+        left, right = st.columns(2)
+        with left:
+            st.markdown(
+                """
+                **What is presented**
+
+                - Synthetic people linked to coherent synthetic households
+                - Person, household, dwelling, tenure, income, labour, and commute attributes
+                - Distribution views across the validated H2J demonstration bundle
+                - A resident and household explorer for inspecting joint attribute combinations
+                """
+            )
+        with right:
+            st.markdown(
+                """
+                **How to interpret it**
+
+                - Records are synthetic and do not describe identifiable residents.
+                - Quality views compare synthetic distributions with area-level target distributions.
+                - The current full bundle covers 30 dissemination areas in H2J.
+                - The DSM alignment analysis is available as a separate presentation from the selector above.
+                """
+            )
+    st.caption(
+        "This is a research communication demo. Synthetic records support population-level exploration and "
+        "method evaluation; they are not individual predictions."
+    )
 
 
 def selected_fsa_from_plotly_event(event: object, valid_fsas: set[str]) -> str | None:
@@ -839,8 +877,6 @@ def render_household_lens(
 def render_synpop_path(
     selected_fsa_context: str,
     population: pd.DataFrame,
-    dsm_profiles: pd.DataFrame,
-    real_alignment: pd.DataFrame,
 ) -> None:
     h2j_population, validation, support, totals, bundle_metadata = load_synpop_demo_data()
     st.subheader("Synthetic population")
@@ -870,12 +906,6 @@ def render_synpop_path(
         )
         selected = profiles.loc[profiles["resident_id"].eq(selected_id)].iloc[0]
         render_field_cards(synpop_profile_fields(selected, PERSON_ATTRIBUTES + HOUSEHOLD_ATTRIBUTES))
-        render_household_lens(
-            selected,
-            selected_fsa_context=selected_fsa_context,
-            dsm_profiles=dsm_profiles,
-            real_alignment=real_alignment,
-        )
         return
 
     m1, m2, m3, m4 = st.columns(4)
@@ -954,12 +984,6 @@ def render_synpop_path(
             f"Synthetic resident {selected_id} belongs to synthetic household {selected['household_id']} in DA {selected_da}. "
             "IDs are workflow identifiers, not real-world identities."
         )
-        render_household_lens(
-            selected,
-            selected_fsa_context=selected_fsa_context,
-            dsm_profiles=dsm_profiles,
-            real_alignment=real_alignment,
-        )
 
     else:
         st.plotly_chart(validation_fit_figure(validation), width="stretch", config=PLOTLY_CONFIG)
@@ -1003,9 +1027,7 @@ def render_esim_path(
     population: pd.DataFrame,
     valid_fsas: set[str],
 ) -> None:
-    tab_results, tab_programs, tab_synpop, tab_info = st.tabs(
-        ["FSA Results", "Program Analysis", "Synthetic Population", "Info"]
-    )
+    tab_results, tab_programs, tab_info = st.tabs(["FSA Results", "Program Analysis", "Info"])
     selected_scores = all_fsa_scores.loc[all_fsa_scores["fsa_context"] == selected_fsa_context]
     if selected_scores.empty:
         st.warning("No DSM alignment row found for the selected FSA.")
@@ -1257,14 +1279,6 @@ def render_esim_path(
             "These are FSA-level normalized indices from the DSM report workflow. They describe local structural fit, not a resident-level recommendation."
         )
 
-    with tab_synpop:
-        render_synpop_path(
-            selected_fsa_context,
-            population,
-            dsm_profiles,
-            real_alignment,
-        )
-
     with tab_info:
         st.subheader("Workflow notes")
         st.write(
@@ -1315,10 +1329,16 @@ with logo_col:
     if ESIM_LOGO_IMAGE.exists():
         st.image(str(ESIM_LOGO_IMAGE), width=180)
 with title_col:
-    st.title("DSM Alignment Explorer v2")
-    st.caption("eSim 2026 | FSA analysis with a synthetic-population extension")
-render_intro(metadata)
-demo_mode = "eSim DSM alignment"
+    st.title("Urban Energy Research Explorer v2")
+    st.caption("eSim 2026 | Synthetic population and DSM alignment presentations")
+
+presentation_mode = st.radio(
+    "Choose presentation",
+    ["Synthetic Population", "DSM Alignment"],
+    horizontal=True,
+    key="presentation_mode",
+    help="The two presentations are kept separate while their combined workflow is being developed.",
+)
 
 fsa_options = real_alignment["fsa"].sort_values().tolist()
 valid_fsas = set(fsa_options)
@@ -1328,75 +1348,80 @@ if "selected_resident_id" not in st.session_state:
     first_resident = population.loc[population["fsa_context"] == st.session_state.selected_fsa_context].iloc[0]
     st.session_state.selected_resident_id = first_resident["resident_id"]
 
-st.subheader("1. Choose a Montreal FSA from the map")
-st.caption("Click a dot to update the active FSA analysis context. Use pinch/scroll to zoom and drag to pan.")
-map_event = st.plotly_chart(
-    fsa_context_map(
-        dsm_profiles,
-        all_fsa_scores,
-        fsa_geojson,
-        area_locations,
-        selected_fsa=st.session_state.selected_fsa_context,
-        title="Primary FSA selector",
-    ),
-    width="stretch",
-    config=MAP_PLOTLY_CONFIG,
-    key="primary_fsa_map",
-    on_select="rerun",
-    selection_mode=["points"],
-)
-clicked_fsa = selected_fsa_from_plotly_event(map_event, valid_fsas)
-if clicked_fsa and clicked_fsa != st.session_state.selected_fsa_context:
-    set_selected_fsa(clicked_fsa, population)
-    st.session_state.pending_fsa_context = None
-    st.rerun()
+if presentation_mode == "Synthetic Population":
+    demo_mode = "Synthetic population presentation"
+    selected_fsa_context = "H2J"
+    render_synpop_intro()
+    render_synpop_path(
+        selected_fsa_context,
+        population,
+    )
+else:
+    demo_mode = "eSim DSM alignment"
+    render_dsm_intro(metadata)
 
-selection_a, selection_b = st.columns(2)
-with selection_a:
-    st.metric("Selected FSA", st.session_state.selected_fsa_context)
-with selection_b:
-    selected_demand = all_fsa_scores.loc[all_fsa_scores["fsa_context"] == st.session_state.selected_fsa_context, "demand_relevance"]
-    st.metric("Demand relevance", f"{selected_demand.iloc[0]:.2f}" if not selected_demand.empty else "n/a")
-
-with st.sidebar:
-    st.header("Current selection")
-    st.metric("FSA", st.session_state.selected_fsa_context)
-    st.caption("Use the map as the primary selector. The manual dropdown is a fallback for touch screens or inaccessible map interactions.")
-    with st.expander("Manual selection fallback", expanded=False):
-        manual_fsa = st.selectbox(
-            "Montreal FSA",
-            fsa_options,
-            index=fsa_options.index(st.session_state.selected_fsa_context),
-            help="Fallback selector if map selection is inconvenient.",
-        )
-        if manual_fsa != st.session_state.selected_fsa_context:
-            set_selected_fsa(manual_fsa, population)
-            st.rerun()
-
-selected_fsa_context = st.session_state.selected_fsa_context
-residents_in_fsa = population.loc[population["fsa_context"] == selected_fsa_context].reset_index(drop=True)
-if st.session_state.selected_resident_id not in set(residents_in_fsa["resident_id"]):
-    st.session_state.selected_resident_id = residents_in_fsa.iloc[0]["resident_id"]
-resident = residents_in_fsa.loc[residents_in_fsa["resident_id"] == st.session_state.selected_resident_id].iloc[0]
-
-scores, explanations = score_resident(resident, dsm_profiles, real_alignment, fsa_context=selected_fsa_context)
-selected_breakdown = pd.concat(
-    [
-        program_breakdown(
-            program,
-            resident,
+    st.subheader("1. Choose a Montreal FSA from the map")
+    st.caption("Click a dot to update the active FSA analysis context. Use pinch/scroll to zoom and drag to pan.")
+    map_event = st.plotly_chart(
+        fsa_context_map(
             dsm_profiles,
-            real_alignment,
-            fsa_context=selected_fsa_context,
-        ).assign(program=program)
-        for program in scores["program"]
-    ],
-    ignore_index=True,
-)
-top = scores.iloc[0]
-selected_fsa_scores = all_fsa_scores.loc[all_fsa_scores["fsa_context"].eq(selected_fsa_context)]
-if not selected_fsa_scores.empty:
-    top = esim_program_score_rows(selected_fsa_scores.iloc[0]).iloc[0]
+            all_fsa_scores,
+            fsa_geojson,
+            area_locations,
+            selected_fsa=st.session_state.selected_fsa_context,
+            title="Primary FSA selector",
+        ),
+        width="stretch",
+        config=MAP_PLOTLY_CONFIG,
+        key="primary_fsa_map",
+        on_select="rerun",
+        selection_mode=["points"],
+    )
+    clicked_fsa = selected_fsa_from_plotly_event(map_event, valid_fsas)
+    if clicked_fsa and clicked_fsa != st.session_state.selected_fsa_context:
+        set_selected_fsa(clicked_fsa, population)
+        st.session_state.pending_fsa_context = None
+        st.rerun()
+
+    selection_a, selection_b = st.columns(2)
+    with selection_a:
+        st.metric("Selected FSA", st.session_state.selected_fsa_context)
+    with selection_b:
+        selected_demand = all_fsa_scores.loc[
+            all_fsa_scores["fsa_context"] == st.session_state.selected_fsa_context,
+            "demand_relevance",
+        ]
+        st.metric("Demand relevance", f"{selected_demand.iloc[0]:.2f}" if not selected_demand.empty else "n/a")
+
+    with st.sidebar:
+        st.header("Current DSM selection")
+        st.metric("FSA", st.session_state.selected_fsa_context)
+        st.caption(
+            "Use the map as the primary selector. The manual dropdown is a fallback for touch screens "
+            "or inaccessible map interactions."
+        )
+        with st.expander("Manual selection fallback", expanded=False):
+            manual_fsa = st.selectbox(
+                "Montreal FSA",
+                fsa_options,
+                index=fsa_options.index(st.session_state.selected_fsa_context),
+                help="Fallback selector if map selection is inconvenient.",
+            )
+            if manual_fsa != st.session_state.selected_fsa_context:
+                set_selected_fsa(manual_fsa, population)
+                st.rerun()
+
+    selected_fsa_context = st.session_state.selected_fsa_context
+    render_esim_path(selected_fsa_context, real_alignment, all_fsa_scores, population, valid_fsas)
+
+feedback_scores = all_fsa_scores.loc[all_fsa_scores["fsa_context"].eq(selected_fsa_context)]
+if feedback_scores.empty:
+    feedback_top_program = "Not applicable"
+    feedback_top_score = 0.0
+else:
+    feedback_top = esim_program_score_rows(feedback_scores.iloc[0]).iloc[0]
+    feedback_top_program = str(feedback_top["program"])
+    feedback_top_score = float(feedback_top["alignment_score"])
 
 with st.sidebar:
     st.markdown(
@@ -1413,18 +1438,16 @@ with st.sidebar:
             form_key="sidebar_feedback_form",
             demo_mode=demo_mode,
             selected_fsa_context=selected_fsa_context,
-            top_program=str(top["program"]),
-            top_alignment_score=float(top["alignment_score"]),
+            top_program=feedback_top_program,
+            top_alignment_score=feedback_top_score,
         )
-
-render_esim_path(selected_fsa_context, real_alignment, all_fsa_scores, population, valid_fsas)
 
 st.divider()
 st.subheader("Share feedback")
 st.markdown(
-    """
+    f"""
     <div class="feedback-callout">
-      <strong>Your feedback helps improve the eSim demo.</strong><br>
+      <strong>Your feedback helps improve the {presentation_mode.lower()} presentation.</strong><br>
       Please tell me what was clear, what was confusing, or what you expected to see next.
     </div>
     """,
@@ -1434,6 +1457,6 @@ render_feedback_form(
     form_key="main_feedback_form",
     demo_mode=demo_mode,
     selected_fsa_context=selected_fsa_context,
-    top_program=str(top["program"]),
-    top_alignment_score=float(top["alignment_score"]),
+    top_program=feedback_top_program,
+    top_alignment_score=feedback_top_score,
 )

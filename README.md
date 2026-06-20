@@ -1,8 +1,10 @@
-# DSM Alignment Explorer v2
+# Urban Energy Research Explorer v2
 
 A Streamlit research communication demo developed for eSim 2026. Version 2 combines the Montreal FSA demand-side-management alignment workflow with a synthetic-population exploration layer.
 
 The eSim-only conference release is preserved by the Git tag `v1-demo`.
+
+The app opens with a top-level presentation selector. **Synthetic Population** is currently the default and is presented independently from **DSM Alignment**; the two workflows are intentionally not merged in this release.
 
 The app lets visitors select a Montreal Forward Sortation Area (FSA) from a map and inspect how that FSA aligns with four program pathways:
 
